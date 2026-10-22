@@ -614,19 +614,27 @@
       const product = item.innerText.split('\n').pop().trim();
       clickEl(item); await idle(1500);
       await button('Add to bag', { timeout: 30000 });
+      // LLM popup: open the LLM pick list, select the first model, click Configure
       let popup = 'no LLM popup';
-      const modal = await waitFor(() => $v('.ant-modal-wrap').find(m => /Configure Cost Profiles|LLM/i.test(m.innerText)), 4000, 'LLM popup').catch(() => null);
+      const modal = await waitFor(() => $v('.ant-modal-wrap').find(m => /Configure Cost Profiles|LLM/i.test(m.innerText)), 10000, 'LLM popup').catch(() => null);
       if (modal) {
-        const picks = [];
-        for (const sel of $$('.ant-select', modal)) {
-          fire(sel.querySelector('.ant-select-selector'), 'mousedown'); await sleep(700);
-          const o = await waitFor(() => dropdown() && $$('.ant-select-item-option', dropdown())[0], 5000, 'model option').catch(() => null);
-          if (o) { picks.push(o.innerText.trim()); clickEl(o); } await sleep(300);
+        await sleep(500);
+        const sels = $$('.ant-select', modal);
+        const llm = sels.find(x => /Select LLM/i.test(x.innerText)) || sels[0];
+        let model = '';
+        for (let i = 0; i < 3 && !model && llm; i++) {
+          fire(llm.querySelector('.ant-select-selector'), 'mousedown'); await sleep(700);
+          const o = await waitFor(() => dropdown() && $$('.ant-select-item-option', dropdown())[0], 6000, 'first LLM model').catch(() => null);
+          if (!o) continue;
+          clickEl(o); await sleep(400);
+          model = (llm.querySelector('.ant-select-selection-item')?.innerText || '').trim();
         }
+        if (!model) throw new Error('LLM pick list: could not select the first model');
         const cfg = $$('button', modal).find(b => /^Configure/.test(b.innerText.trim()));
         if (cfg) clickEl(cfg);
-        await toast(10000).catch(() => '');
-        popup = `LLM popup → ${picks.join(', ')} → Configure`;
+        await waitFor(() => !visible(modal), 15000, 'LLM popup to close').catch(() => {});
+        await toast(8000).catch(() => '');
+        popup = `LLM → ${model} → Configure`;
       }
       await button('Finalize', { timeout: 30000 });
       await buttonAny(['Yes', 'Confirm', 'OK'], 2500);

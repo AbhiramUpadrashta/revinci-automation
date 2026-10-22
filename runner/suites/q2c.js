@@ -124,24 +124,32 @@ async function selectByLabel(page, label, want) {
   return await a.select(page, label, want, { optional: true, search: false }) || await a.selectFirst(page, label);
 }
 
-// LLM / cost-profile popup after "Add to bag": pick the first option in every dropdown, then Configure.
+// LLM popup after "Add to bag": open the LLM pick list, select the first model, click Configure.
 async function costProfilePopup(run) {
   const { page } = run;
   const modal = page.locator('.ant-modal-wrap:visible').filter({ hasText: /Configure Cost Profiles|LLM/i }).first();
-  if (!(await modal.isVisible({ timeout: 4000 }).catch(() => false))) return 'no LLM popup';
-  const picked = [];
-  const sels = modal.locator('.ant-select');
-  const n = await sels.count();
-  for (let i = 0; i < n; i++) {
-    await sels.nth(i).locator('.ant-select-selector').click();
-    const opt = page.locator('.ant-select-dropdown:not(.ant-select-dropdown-hidden) .ant-select-item-option').first();
-    if (await opt.isVisible({ timeout: 5000 }).catch(() => false)) { picked.push((await opt.innerText()).trim()); await opt.click(); }
-    else await page.keyboard.press('Escape');
-    await page.waitForTimeout(300);
+  if (!(await modal.isVisible({ timeout: 10000 }).catch(() => false))) return 'no LLM popup';
+  await page.waitForTimeout(500);
+  let llm = modal.locator('.ant-select').filter({ hasText: /Select LLM/i }).first();
+  if (!(await llm.count())) llm = modal.locator('.ant-select').first();
+  let model = '';
+  for (let attempt = 1; attempt <= 3 && !model; attempt++) {
+    await llm.scrollIntoViewIfNeeded().catch(() => {});
+    await llm.locator('.ant-select-selector').click({ force: true });
+    const first = page.locator('.ant-select-dropdown:not(.ant-select-dropdown-hidden) .ant-select-item-option').first();
+    if (!(await first.isVisible({ timeout: 6000 }).catch(() => false))) { await page.keyboard.press('Escape'); continue; }
+    const t = (await first.innerText()).trim();
+    await first.click();
+    await page.waitForTimeout(400);
+    const shown = (await llm.locator('.ant-select-selection-item').first().innerText().catch(() => '')).trim();
+    if (shown) model = shown || t;
   }
-  await a.button(page, 'Configure Cost Profiles', { within: modal }).catch(() => a.button(page, 'Configure', { exact: false, within: modal }));
-  await a.toast(page, 10000).catch(() => '');
-  return `LLM popup → ${picked.join(', ') || 'no dropdowns'} → Configure`;
+  if (!model) throw new Error('LLM pick list: could not select the first model');
+  const cfg = modal.locator('button').filter({ hasText: /^\s*Configure/i }).first();
+  await cfg.click();
+  await modal.waitFor({ state: 'hidden', timeout: a.to(15000) }).catch(() => {});
+  await a.toast(page, 8000).catch(() => '');
+  return `LLM → ${model} → Configure`;
 }
 
 async function order(run) {
