@@ -22,7 +22,17 @@ async function login(run) {
   // 1. Wait until we are either on the sign-in form or inside the workspace.
   const end1 = Date.now() + 60000;
   let state = null;
+  let kcClicked = false;
+  const kcButton = page.locator('button:visible, a:visible, [role=button]:visible').filter({ hasText: /sign\s*in\s*with\s*keycloak/i }).first();
   while (Date.now() < end1 && !state) {
+    // Some workspaces first show a "Sign in with Keycloak" button — click it when present, otherwise skip.
+    if (!kcClicked && await kcButton.isVisible().catch(() => false)) {
+      await kcButton.click().catch(() => {});
+      kcClicked = true;
+      run.log('  clicked "Sign in with Keycloak"');
+      await page.waitForTimeout(800);
+      continue;
+    }
     if (await page.locator(LOGIN_FORM).isVisible().catch(() => false)) state = 'form';
     else if (await loggedIn(page, origin)) state = 'in';
     else await page.waitForTimeout(500);
@@ -56,7 +66,7 @@ async function login(run) {
 
   await waitIdle(page, 1500);
   run.tenantId = run.tenantId || (await page.evaluate(() => localStorage.getItem('tenant')).catch(() => null)) || base.hostname.split('-')[0];
-  return `signed in · tenant ${run.tenantId}`;
+  return `signed in · tenant ${run.tenantId}${kcClicked ? ' · via Sign in with Keycloak' : ''}`;
 }
 
 module.exports = { login };
