@@ -159,6 +159,29 @@
     clickEl(pick); await sleep(300);
     return t;
   }
+  // Price UOM: type the value into the dropdown search, pick it from the list, confirm it shows as selected.
+  async function priceUom(value = 'Each') {
+    const fi = ['Price UOM', 'Price Uom', 'Price Unit of Measure', 'UOM', 'Unit of Measure'].map(formItem).find(Boolean);
+    if (!fi) throw new Error('Price UOM field not found on this screen');
+    const sel = fi.querySelector('.ant-select');
+    sel.scrollIntoView({ block: 'center' });
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      fire(sel.querySelector('.ant-select-selector'), 'mousedown'); await sleep(350);
+      const search = sel.querySelector('input.ant-select-selection-search-input');
+      if (search) { setValue(search, ''); for (let i = 1; i <= value.length; i++) { setValue(search, value.slice(0, i)); await sleep(60); } }
+      const opt = await waitFor(() => {
+        const dd = dropdown(); if (!dd) return null;
+        const opts = $$('.ant-select-item-option', dd);
+        return opts.find(o => o.innerText.trim().toLowerCase() === value.toLowerCase()) || opts.find(o => o.innerText.toLowerCase().includes(value.toLowerCase()));
+      }, 6000, `"${value}" in Price UOM`).catch(() => null);
+      if (!opt) { if (search) key(search, 'Escape'); await sleep(500); continue; }
+      clickEl(opt); await sleep(400);
+      const shown = (sel.querySelector('.ant-select-selection-item')?.innerText || '').trim();
+      if (shown.toLowerCase().includes(value.toLowerCase())) return shown;
+    }
+    throw new Error(`Price UOM: could not select "${value}" from the pick list`);
+  }
+
   async function tags(label, values) {
     const sel = await openSelect(label);
     const input = sel.querySelector('input.ant-select-selection-search-input');
@@ -394,7 +417,8 @@
     await checkbox('I Want to Set Price', true).catch(() => {});
     await select('Selling Model', method === 'One Time' ? 'One Time' : 'Recurring', { optional: true }).catch(() => {});
     await select('Selling Frequency', 'Monthly', { optional: true }).catch(() => {});
-    (await select('Price UOM', R.data.uom || 'Each', { optional: true }).catch(() => null)) || (await selectFirst('Price UOM').catch(() => {}));
+    const uom = await priceUom('Each');
+    UI.log(`  Price UOM → ${uom}`);
     await fill('Start Price', String(amount)).catch(() => {});
     await clickText(/^\s*flat\s*$/i).catch(() => {});
     if (method === 'Consumption') { await fill('Outcome ID', 'task_completed').catch(() => {}); await fill('Price', String(amount)).catch(() => {}); }
@@ -454,7 +478,7 @@
         attrs = ' · attributes attached';
       } catch (e) { attrs = ` · attributes: ${e.message}`; }
     }
-    const priced = await price(o.price, o.amount).catch(e => `pricing failed: ${e.message}`);
+    const priced = await price(o.price, o.amount);
     const P = R.data.products;
     const linkNames = o.id === 'productWithFeatures' ? [P.feature?.name] : o.id === 'productWithOfferings' ? [P.featureOffering?.name] : o.id === 'featureOffering' ? [P.feature?.name] : [];
     const names = linkNames.filter(Boolean);
@@ -554,65 +578,89 @@
       return `${name} · ${acct} · ${item} · ${trail.join(' → ') || 'no lifecycle buttons shown'}`;
     },
     async order() {
+      // always copy the first account name from the Accounts screen
+      await go('/dashboard/crm/account');
+      const c = await waitFor(() => $v('.ag-row[row-index="0"] [col-id="name"]')[0], 20000, 'accounts list');
+      const acct = c.innerText.trim();
+      if (!acct || acct === '-') throw new Error('Could not read the first account name on the Accounts screen');
+      UI.log('  copied first account: ' + acct);
       await go('/dashboard/orders/new');
       const name = `AT Order ${R.tag}`, number = `ORD-${R.tag}`;
-      const acct = await pickAccount('Account');
+      const asel = await openSelect('Account');
+      const as = asel.querySelector('input.ant-select-selection-search-input');
+      setValue(as, acct);
+      const first = await waitFor(() => dropdown() && $$('.ant-select-item-option', dropdown())[0], 15000, `account "${acct}" in the list`);
+      const picked = first.innerText.trim(); clickEl(first); await sleep(400);
+      if (picked !== acct) throw new Error(`Account pick list showed "${picked}" first, expected "${acct}"`);
       await fill('Name', name, 'name');
       await fill('Number', number, 'quoteNumber');
       await fill('Description', 'Created by Revinci Test Automation', 'description');
-      await date('startDate', new Date());
-      const ppd = new Date(); ppd.setMonth(ppd.getMonth() + 6);
-      await date('priceProtectionDate', ppd).catch(() => {});
+      const sd = formItem('Start Date').querySelector('.ant-picker input');
+      clickEl(sd); fire(sd, 'mousedown'); await sleep(500);
+      const now = await waitFor(() => $v('.ant-picker-dropdown:not(.ant-picker-dropdown-hidden) .ant-picker-now-btn, .ant-picker-dropdown:not(.ant-picker-dropdown-hidden) .ant-picker-today-btn')[0], 5000, 'Today in date picker');
+      clickEl(now); await sleep(400);
       (await select('Billing Frequency', 'Monthly', { optional: true })) || (await selectFirst('Billing Frequency'));
       const seg = $v('.ant-segmented-item').find(s => /30 Days/.test(s.innerText)); if (seg) clickEl(seg);
       (await select('Currency', 'USD', { optional: true })) || (await selectFirst('Currency'));
-      (await select('Rate Type', 'Budgeted', { optional: true })) || (await selectFirst('Rate Type'));
-      await button('Continue'); await toast().catch(() => ''); await idle(2500);
-      R.data.order = { name, number, account: acct };
-      const item = await addToBag(productToSell());
-      if (!(await buttonAny(['Finalize', 'Finalize Order'], 8000))) throw new Error('Finalize button not found on the order bag');
-      await buttonAny(['Yes', 'Confirm', 'OK', 'Finalize'], 3000); await toast().catch(() => '');
-      return `${name} (${number}) · ${acct} · ${item} · finalized`;
+      if (formItem('Rate Type')) (await select('Rate Type', 'Budgeted', { optional: true })) || (await selectFirst('Rate Type'));
+      await button('Continue');
+      await waitFor(() => /\/dashboard\/orders\/[0-9a-f-]{36}/.test(W().location.pathname), 30000, 'order bag');
+      R.data.order = { name, number, account: picked };
+      const search = await waitFor(() => $v('input[placeholder="Search products"]')[0], 30000, 'product list');
+      const item = await waitFor(() => search.closest('.w-1\\/4')?.querySelector('.space-y-1 > div.cursor-pointer') || $v('.space-y-1 > div.cursor-pointer')[0], 20000, 'first product in the list');
+      const product = item.innerText.split('\n').pop().trim();
+      clickEl(item); await idle(1500);
+      await button('Add to bag', { timeout: 30000 });
+      let popup = 'no LLM popup';
+      const modal = await waitFor(() => $v('.ant-modal-wrap').find(m => /Configure Cost Profiles|LLM/i.test(m.innerText)), 4000, 'LLM popup').catch(() => null);
+      if (modal) {
+        const picks = [];
+        for (const sel of $$('.ant-select', modal)) {
+          fire(sel.querySelector('.ant-select-selector'), 'mousedown'); await sleep(700);
+          const o = await waitFor(() => dropdown() && $$('.ant-select-item-option', dropdown())[0], 5000, 'model option').catch(() => null);
+          if (o) { picks.push(o.innerText.trim()); clickEl(o); } await sleep(300);
+        }
+        const cfg = $$('button', modal).find(b => /^Configure/.test(b.innerText.trim()));
+        if (cfg) clickEl(cfg);
+        await toast(10000).catch(() => '');
+        popup = `LLM popup → ${picks.join(', ')} → Configure`;
+      }
+      await button('Finalize', { timeout: 30000 });
+      await buttonAny(['Yes', 'Confirm', 'OK'], 2500);
+      await waitFor(() => /\/dashboard\/orders\/?$/.test(W().location.pathname), 30000, 'orders list after Finalize').catch(() => {});
+      return `${name} (${number}) · account ${picked} · ${product} added · ${popup} · finalized`;
     },
     async entitlement() {
-      const target = R.data.order?.name || R.data.quote?.name;
-      let ent = null;
-      for (let i = 0; i < 10 && !ent; i++) {
-        const res = await api('GET', '/revenue-management/api/v1/revenue-entitlements?page=0&size=50&sort=createdDate,desc');
-        const list = items(res.body);
-        ent = list.find(e => target && JSON.stringify(e).includes(target)) || (target ? null : list[0]);
-        if (!ent) await sleep(3000);
+      await go('/dashboard/revenueEntitlement');
+      const target = R.data.order?.name;
+      await waitFor(() => $v('.ag-row[row-index="0"]')[0], 30000, 'entitlement list');
+      let idx = '0';
+      for (let i = 0; target && i < 20; i++) {
+        const hit = $v('.ag-pinned-left-cols-container .ag-row').find(r => r.innerText.trim() === target);
+        if (hit) { idx = hit.getAttribute('row-index'); break; }
+        await sleep(3000); await go('/dashboard/revenueEntitlement');
       }
-      if (!ent) throw new Error(`No entitlement found for ${target || 'the order'} — finalize the order first`);
-      R.data.entitlement = { id: ent.id, name: ent.name };
-      await go(`/dashboard/revenueEntitlement/${ent.id}`);
-      if (!findButton('Activate')) { await go('/dashboard/revenueEntitlement'); await clickText(new RegExp(esc(ent.name))); await idle(2000); }
-      let activated = false;
-      if (await buttonAny(['Activate'], 6000)) {
-        const pk = $v('.ant-modal .ant-picker input')[0];
-        if (pk) { setValue(pk, fmt(new Date())); key(pk, 'Enter'); }
-        await buttonAny(['Confirm', 'Activate', 'Yes', 'OK'], 4000); await toast().catch(() => '');
-        activated = true;
-      }
-      const ext = `WT-${R.tag}`; let mapped = false;
-      const kebab = $v('button').find(b => b.querySelector('.anticon-more, .anticon-ellipsis') || /more/i.test(b.getAttribute('aria-label') || ''));
-      if (kebab) {
-        clickEl(kebab); await sleep(500);
-        const m = $v('*').filter(e => !e.children.length).find(e => /map external id/i.test(e.textContent));
-        if (m) {
-          clickEl(m); await sleep(600);
-          const inp = $v('.ant-modal input[type=text], .ant-modal input:not([type])')[0];
-          if (inp) { setValue(inp, ext); await buttonAny(['Save', 'Map', 'Confirm', 'OK'], 3000); await toast().catch(() => ''); mapped = true; }
-        }
-      }
-      R.data.entitlement.externalPlanId = mapped ? ext : null;
-      const after = await api('GET', `/revenue-management/api/v1/revenue-entitlements/${ent.id}`);
-      const plans = items((await api('GET', `/revenue-management/api/v1/plans/entitlement/${ent.id}`)).body);
-      Object.assign(R.data.entitlement, { status: after.body?.status, planId: plans[0]?.id, planNumber: plans[0]?.planNumber || plans[0]?.number });
-      return `${ent.name} · ${activated ? 'activated' : 'Activate button not shown'} · status ${after.body?.status || '?'} · ${mapped ? 'external ID ' + ext : 'external ID not mapped'} · ${plans.length} plan(s)`;
+      const entName = ($v(`.ag-pinned-left-cols-container .ag-row[row-index="${idx}"]`)[0]?.innerText || '').trim();
+      clickEl(await waitFor(() => $v(`.ag-pinned-right-cols-container .ag-row[row-index="${idx}"] button`)[0], 10000, 'open (eye) button'));
+      await waitFor(() => /revenueEntitlement\/[0-9a-f-]{36}/.test(W().location.pathname), 20000, 'entitlement page');
+      await idle(1500);
+      const id = W().location.pathname.split('/').pop();
+      R.data.entitlement = { id, name: entName };
+      await button('Activate', { timeout: 30000 });
+      const pk = await waitFor(() => $v('.ant-modal-wrap .ant-picker input')[0], 15000, 'Activation Date');
+      clickEl(pk); fire(pk, 'mousedown'); await sleep(500);
+      const now = await waitFor(() => $v('.ant-picker-dropdown:not(.ant-picker-dropdown-hidden) .ant-picker-now-btn, .ant-picker-dropdown:not(.ant-picker-dropdown-hidden) .ant-picker-today-btn')[0], 5000, 'Today');
+      clickEl(now); await sleep(500);
+      const d = pk.value;
+      const conf = $v('.ant-modal-wrap button').find(b => b.innerText.trim() === 'Activate'); if (conf) clickEl(conf);
+      await toast(8000).catch(() => '');
+      await waitFor(() => findButton('Generate Invoice'), 20000, 'entitlement to become Active');
+      const plans = items((await api('GET', `/revenue-management/api/v1/plans/entitlement/${id}`)).body);
+      Object.assign(R.data.entitlement, { status: 'Active', activationDate: d, planNumber: plans[0]?.planNumber || plans[0]?.number });
+      return `${entName || id} · activated on ${d || 'today'} · Active · ${plans.length} plan(s)`;
     },
     async usage() {
-      const plan = R.data.entitlement?.externalPlanId || R.data.entitlement?.planNumber || UI.val('planNumber').trim();
+      const plan = R.data.entitlement?.planNumber || UI.val('planNumber').trim();
       if (!plan) throw new Error('No plan number — run the entitlement step or set "Plan number"');
       const res = await api('POST', '/usage-ingestion/api/v1/usage/ingest', usageEvent(plan), { auth: R.apiKey ? 'key' : 'session' });
       if (res.status >= 300) throw new Error(`Ingest → HTTP ${res.status}: ${String(res.text).slice(0, 160)}`);
@@ -685,7 +733,7 @@
     { id: 'admin', title: 'Admin setup', options: [['currency', 'Currency'], ['exchangeRate', 'Currency exchange rate'], ['uom', 'Unit of measure'], ['attribute', 'Attribute (PickList)'], ['attributeGroup', 'Attribute group'], ['priceProfile', 'Price profile'], ['costProfile', 'Cost profile'], ['account', 'Customer account']], run: async picks => { for (const [id, l] of SUITES[0].options) if (picks.includes(id)) await step('Admin · ' + l, ADMIN[id]); } },
     { id: 'apikey', title: 'API key', options: [['ensure', 'Find or create API key']], run: async () => step('API key · find or create', KEYS.ensure) },
     { id: 'products', title: 'Product setup', options: PRODUCTS.map(p => [p.id, p.label]), run: async picks => { for (const o of PRODUCTS) if (picks.includes(o.id)) await step('Product · ' + o.label, () => o.special === 'optionGroup' ? optionGroup() : o.special === 'agent' ? agent(o) : createProduct(o)); } },
-    { id: 'q2c', title: 'Quote · Order · Entitlement', options: [['quote', 'Quote → bag → finalize → lifecycle'], ['order', 'Order → bag → finalize'], ['entitlement', 'Activate entitlement + map external ID'], ['usage', 'Send a usage event to the plan']], run: async picks => { for (const [id, l] of SUITES[3].options) if (picks.includes(id)) await step('Q2C · ' + l, Q2C[id]); } },
+    { id: 'q2c', title: 'Quote · Order · Entitlement', options: [['quote', 'Quote → bag → finalize → lifecycle'], ['order', 'Order (type account) → first agent → LLM popup → finalize'], ['entitlement', 'Open first entitlement → Activate (today)'], ['usage', 'Send a usage event to the plan']], run: async picks => { for (const [id, l] of SUITES[3].options) if (picks.includes(id)) await step('Q2C · ' + l, Q2C[id]); } },
     { id: 'api', title: 'API testing', options: [['auth', 'Auth & headers (positive + negative)'], ['accounts', 'Accounts — list, get, create'], ['entitlements', 'Entitlements, plans, rating, usage summaries'], ['wallets', 'Wallets, carryover & consumption rules'], ['usage', 'Usage ingestion — single & bulk']], run: async picks => {
       if (!R.apiKey) { const s = LS.get('apiKey.' + HOST, null); const p = UI.val('apiKey').trim(); R.apiKey = p || s?.key || null; }
       UI.log(`API base ${apiBase()} · tenant ${TENANT()} · auth ${R.apiKey ? 'API key' : 'session token'}`);

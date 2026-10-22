@@ -65,7 +65,8 @@ async function price(run, method, amount) {
   await a.checkbox(page, 'I Want to Set Price', true).catch(() => {});
   await a.select(page, 'Selling Model', method === 'One Time' ? 'One Time' : 'Recurring', { optional: true }).catch(() => {});
   await a.select(page, 'Selling Frequency', 'Monthly', { optional: true }).catch(() => {});
-  await a.select(page, 'Price UOM', run.data.uom || 'Each', { optional: true }).catch(() => a.selectFirst(page, 'Price UOM').catch(() => {}));
+  const uom = await a.priceUom(page, 'Each');
+  run.log(`  Price UOM → ${uom}`);
   await a.fill(page, 'Start Price', String(amount)).catch(() => {});
   await page.getByText(/^\s*flat\s*$/i).first().click().catch(() => {});
   if (method === 'Consumption') {
@@ -115,7 +116,7 @@ async function createProduct(run, o) {
   run.log(`  created ${p.name} [${p.code}]`);
   let attrs = '';
   if (withAttr) attrs = await attachAttributes(run).then(ok => ok ? ' · attributes attached' : '').catch(e => ` · attributes: ${e.message}`);
-  const priced = await price(run, o.price, o.amount).catch(e => `pricing failed: ${e.message}`);
+  const priced = await price(run, o.price, o.amount);
   const linkNames = o.id === 'productWithFeatures' ? [run.data.products.feature?.name].filter(Boolean)
     : o.id === 'productWithOfferings' ? [run.data.products.featureOffering?.name].filter(Boolean)
     : o.id === 'featureOffering' ? [run.data.products.feature?.name].filter(Boolean) : [];

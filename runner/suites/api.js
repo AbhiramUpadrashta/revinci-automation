@@ -30,7 +30,7 @@ const T = {
       if (![401, 403].includes(res.status)) throw new Error(`expected 401/403 got ${res.status}`);
       return `HTTP ${res.status}`;
     });
-    await r.step('API · invalid key → 401/403', async () => { const x = await http.call(r, 'GET', '/crm/api/v1/accounts?page=0&size=1', null, { auth: 'key', key: 'rvc_invalid_automation_key' }); expect(x, [401, 403], 'invalid key'); return `HTTP ${x.status}`; });
+    await r.step('API · invalid key → 401/403', async () => { const x = await http.call(r, 'GET', '/crm/api/v1/accounts?page=0&size=1', null, { auth: 'key', key: 'rvc_invalid_automation_key', expectFailure: true }); expect(x, [401, 403], 'invalid key'); return `HTTP ${x.status}`; });
   },
 
   async accounts(r) {
@@ -43,7 +43,7 @@ const T = {
       return `id ${x.body?.id}`;
     });
     await r.step('API · GET /crm/api/v1/accounts/{id}', async () => { if (!id) throw new Error('no account id'); const x = expect(await call(r, 'GET', `/crm/api/v1/accounts/${id}`), 200, 'get'); return x.body?.name; });
-    await r.step('API · POST account without name → 4xx', async () => { const x = await call(r, 'POST', '/crm/api/v1/accounts', { accountNumber: `BAD-${r.tag}` }); if (x.status < 400) throw new Error(`accepted invalid payload (${x.status})`); return `HTTP ${x.status}`; });
+    await r.step('API · POST account without name → 4xx', async () => { const x = await call(r, 'POST', '/crm/api/v1/accounts', { accountNumber: `BAD-${r.tag}` }, { expectFailure: true }); if (x.status < 400) throw new Error(`accepted invalid payload (${x.status})`); return `HTTP ${x.status}`; });
   },
 
   async entitlements(r) {
@@ -56,7 +56,7 @@ const T = {
     await r.step('API · GET plan-rate-matrices', async () => { const x = expect(await call(r, 'GET', `/revenue-management/api/v1/plan-rate-matrices/plan?planId=${plan}`), 200, 'rate matrix'); const l = http.items(x.body); rm = l[0]?.id || x.body?.id; return `${l.length || (x.body ? 1 : 0)} matrices`; });
     await r.step('API · GET plan-rate-matrix-entries', async () => { if (!rm) return 'no rate matrix on this plan — skipped'; const x = expect(await call(r, 'GET', `/revenue-management/api/v1/plan-rate-matrix-entries/rate-matrix?rateMatrixId=${rm}`), 200, 'entries'); return `${http.items(x.body).length} entries`; });
     await r.step('API · GET usage-summaries', async () => { const x = expect(await call(r, 'GET', `/revenue-management/api/v1/usage-summaries?scopeNumber=${encodeURIComponent(planNumber || '')}`), 200, 'summaries'); return `${http.items(x.body).length} summaries`; });
-    await r.step('API · GET entitlement with bad id → 4xx', async () => { const x = await call(r, 'GET', '/revenue-management/api/v1/revenue-entitlements/00000000-0000-0000-0000-000000000000'); if (x.status < 400) throw new Error(`returned ${x.status}`); return `HTTP ${x.status}`; });
+    await r.step('API · GET entitlement with bad id → 4xx', async () => { const x = await call(r, 'GET', '/revenue-management/api/v1/revenue-entitlements/00000000-0000-0000-0000-000000000000', null, { expectFailure: true }); if (x.status < 400) throw new Error(`returned ${x.status}`); return `HTTP ${x.status}`; });
     r.data.api = { ...(r.data.api || {}), entitlementId: ent, planId: plan, planNumber };
   },
 
@@ -91,7 +91,7 @@ const T = {
       metadata: { session_id: `sess-${r.tag}`, agent_name: 'revinci-automation', outcome_id: 'task_completed', source_platform: 'revinci_automation' }, eventTimestamp: Date.now() });
     await r.step('API · POST usage/ingest', async () => { const x = expect(await call(r, 'POST', '/usage-ingestion/api/v1/usage/ingest', ev()), [200, 201, 202], 'ingest'); return `${x.body?.status || x.status} · plan ${plan || '(none)'}`; });
     await r.step('API · POST usage/ingest/bulk (5 events)', async () => { const x = expect(await call(r, 'POST', '/usage-ingestion/api/v1/usage/ingest/bulk', [0, 1, 2, 3, 4].map(ev)), [200, 201, 202], 'bulk'); return `${x.body?.successCount ?? '?'} / ${x.body?.totalEvents ?? 5}`; });
-    await r.step('API · ingest with invalid provider → 4xx', async () => { const x = await call(r, 'POST', '/usage-ingestion/api/v1/usage/ingest', { ...ev(9), provider: 'not_a_provider' }); if (x.status < 400) throw new Error(`accepted invalid provider (${x.status})`); return `HTTP ${x.status}`; });
+    await r.step('API · ingest with invalid provider → 4xx', async () => { const x = await call(r, 'POST', '/usage-ingestion/api/v1/usage/ingest', { ...ev(9), provider: 'not_a_provider' }, { expectFailure: true }); if (x.status < 400) throw new Error(`accepted invalid provider (${x.status})`); return `HTTP ${x.status}`; });
   },
 };
 

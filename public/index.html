@@ -6,161 +6,242 @@
 <title>Revinci Test Automation</title>
 <link rel="icon" href="/revinci-logo.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
-:root{--ink:#1D231D;--ink2:#3b443a;--mute:#6b7569;--line:#e3e8e0;--bg:#f5f7f3;--card:#fff;--lime:#a6e46b;--lime2:#d9f5bf;--lime3:#f0fbe6;--red:#c23b3b;--red2:#fde7e7;--amber:#b7791f;--amber2:#fdf3df;--blue:#2f5fd0}
+/* Layout: dark command band with recent runs → setup rail on the left, test selection + results on the right. */
+:root{
+  --ink:#1d231d;--ink2:#394237;--mute:#69745f;--line:#e2e8dc;--bg:#f3f6ef;--card:#fff;--soft:#f8faf5;
+  --lime:#a6e46b;--lime-d:#5f9a2c;--lime-ink:#2c5a10;--lime-bg:#eef9e3;
+  --band:#141a14;--band2:#1f281e;--band-fg:#eef5e9;--band-mute:#9fae99;
+  --ok:#2f8a14;--ok-bg:#e6f6da;--bad:#c23b3b;--bad-bg:#fde8e8;--warn:#9a6508;--warn-bg:#fff3d9;
+  --f-d:"Manrope","Segoe UI",system-ui,sans-serif;--f-b:"IBM Plex Sans",system-ui,sans-serif;--f-m:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
 *{box-sizing:border-box}html,body{margin:0}
-body{font-family:Inter,system-ui,sans-serif;background:var(--bg);color:var(--ink);font-size:14px}
-header{display:flex;align-items:center;gap:14px;padding:14px 24px;background:var(--ink);color:#fff;position:sticky;top:0;z-index:5}
-.logo{width:38px;height:38px;border-radius:10px;background:var(--lime);display:grid;place-items:center}
-.logo img{width:24px}
-header h1{font-size:17px;margin:0;font-weight:600;letter-spacing:.2px}
-header small{color:#b9c4b6;font-weight:400;margin-left:6px}
-header .sp{flex:1}
-.badge{font-size:12px;padding:4px 10px;border-radius:99px;background:#2c352b;color:#cfe9b8}
-.badge.run{background:var(--lime);color:var(--ink)}
-main{display:grid;grid-template-columns:340px 1fr;gap:20px;padding:20px 24px;max-width:1500px;margin:0 auto}
-@media(max-width:980px){main{grid-template-columns:1fr;padding:16px}}
-.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 18px;margin-bottom:16px}
-.card h2{font-size:13px;text-transform:uppercase;letter-spacing:.7px;color:var(--mute);margin:0 0 12px;font-weight:600}
-label.f{display:block;font-size:12.5px;color:var(--ink2);margin:10px 0 4px;font-weight:500}
-input[type=text],input[type=url],input[type=email],input[type=password],input[type=number]{width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:9px;font:inherit;background:#fbfcfa}
-input:focus{outline:2px solid var(--lime);border-color:transparent}
-.row{display:flex;gap:8px;align-items:center}
-.chk{display:flex;gap:8px;align-items:flex-start;margin:8px 0;cursor:pointer;font-size:13.5px}
-.chk input{margin-top:2px;accent-color:#5fa52b}
-.hint{font-size:12px;color:var(--mute);margin-top:4px;line-height:1.45}
-button{font:inherit;cursor:pointer;border-radius:9px;border:1px solid var(--line);background:#fff;padding:8px 12px;color:var(--ink)}
-button:hover{border-color:#c7d0c3}
-button.primary{background:var(--ink);color:#fff;border-color:var(--ink);font-weight:600;padding:11px 18px}
-button.primary:hover{background:#2c352b}
-button.primary:disabled{opacity:.45;cursor:not-allowed}
-button.danger{color:var(--red);border-color:#f0c9c9}
-button.ghost{border:none;background:none;color:var(--blue);padding:4px 6px}
-.presets{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}
-.presets button{background:var(--lime3);border-color:var(--lime2)}
-.suites{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:14px}
-.suite{border:1px solid var(--line);border-radius:12px;padding:12px 14px;background:#fcfdfb}
-.suite.on{border-color:#b7df92;background:var(--lime3)}
-.suite h3{font-size:14.5px;margin:0 0 4px;display:flex;align-items:center;gap:8px}
-.suite h3 .n{font-size:11px;background:var(--ink);color:var(--lime);border-radius:6px;padding:2px 7px}
-.suite .all{font-size:12px}
-.keybox{font-family:'JetBrains Mono',monospace;font-size:12px;background:var(--ink);color:#d9f5bf;padding:10px;border-radius:9px;word-break:break-all;margin-top:6px}
-.keybox.empty{background:var(--amber2);color:var(--amber);font-family:Inter}
-.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin:-4px 0 12px}
-.tabs button{border:none;border-radius:0;background:none;padding:8px 12px;color:var(--mute);border-bottom:2px solid transparent}
-.tabs button.on{color:var(--ink);border-color:var(--ink);font-weight:600}
-.kpis{display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap}
-.kpi{border:1px solid var(--line);border-radius:10px;padding:8px 14px;min-width:96px;background:#fcfdfb}
-.kpi b{display:block;font-size:22px}
-.steps{list-style:none;margin:0;padding:0;max-height:440px;overflow:auto}
-.steps li{display:grid;grid-template-columns:22px 1fr auto;gap:10px;padding:8px 6px;border-bottom:1px solid #f0f3ee;align-items:start}
+body{font:14px/1.5 var(--f-b);background:var(--bg);color:var(--ink)}
+button{font:inherit;cursor:pointer}
+a{color:var(--lime-ink)}
+:focus-visible{outline:3px solid var(--lime);outline-offset:2px}
+
+/* Command band */
+.band{background:radial-gradient(1200px 300px at 85% -40%,#2c4a1c 0,transparent 60%),var(--band);color:var(--band-fg)}
+.band .in{max-width:1480px;margin:0 auto;padding:18px max(20px,env(safe-area-inset-right,0px)) 22px max(20px,env(safe-area-inset-left,0px))}
+.top{display:flex;align-items:center;gap:12px}
+.mark{width:36px;height:36px;border-radius:10px;background:var(--lime);display:grid;place-items:center}
+.mark img{width:22px}
+.brand{font:800 17px var(--f-d);letter-spacing:.2px}.brand small{font:500 13px var(--f-b);color:var(--band-mute);margin-left:6px}
+.sp{flex:1}
+.status{display:inline-flex;align-items:center;gap:8px;font:600 12px var(--f-b);padding:6px 12px;border-radius:99px;background:var(--band2);color:#cfe9b8}
+.status i{width:8px;height:8px;border-radius:50%;background:#6b7a66}
+.status.run{background:var(--lime);color:var(--ink)}.status.run i{background:var(--ink);animation:pulse 1s infinite}
+@keyframes pulse{50%{opacity:.3}}
+.runs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:18px}
+@media(max-width:1000px){.runs{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.run-card{display:block;text-decoration:none;color:inherit;background:var(--band2);border:1px solid #2d382b;border-radius:14px;padding:12px 14px;transition:transform .15s,border-color .15s}
+.run-card:hover{transform:translateY(-2px);border-color:#4a6a38}
+.run-card .r1{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--band-mute)}
+.pill{font:600 11px var(--f-b);padding:2px 8px;border-radius:99px}
+.pill.ok{background:#2b4a1d;color:#bdf08f}.pill.bad{background:#4a1f1f;color:#ffb3b3}
+.run-card .r2{display:flex;align-items:baseline;gap:10px;margin:8px 0 6px;font:800 22px var(--f-d)}
+.run-card .r2 small{font:500 12px var(--f-b);color:var(--band-mute)}
+.bar{height:6px;border-radius:99px;background:#3a2323;overflow:hidden}.bar b{display:block;height:100%;background:var(--lime)}
+.run-card .r3{display:flex;justify-content:space-between;font-size:11.5px;color:var(--band-mute);margin-top:7px;font-family:var(--f-m)}
+.run-empty{grid-column:1/-1;border:1px dashed #33402f;border-radius:14px;padding:16px;color:var(--band-mute);font-size:13px}
+
+main{max-width:1480px;margin:0 auto;display:grid;grid-template-columns:360px minmax(0,1fr);gap:20px;padding:20px max(20px,env(safe-area-inset-right,0px)) 40px max(20px,env(safe-area-inset-left,0px))}
+@media(max-width:1000px){main{grid-template-columns:1fr}}
+main>*{min-width:0}
+input,select,textarea{max-width:100%;box-sizing:border-box}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px;margin-bottom:16px}
+.card h2{font:700 15px var(--f-d);margin:0 0 4px;display:flex;align-items:center;gap:8px}
+.card h2 .n{font:700 11px var(--f-b);background:var(--ink);color:var(--lime);border-radius:6px;padding:2px 7px}
+.sub{color:var(--mute);font-size:12.5px;margin:0 0 12px}
+label.f{display:block;font-size:12.5px;color:var(--ink2);margin:12px 0 5px;font-weight:600}
+input[type=text],input[type=url],input[type=email],input[type=password],input[type=number]{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;font:inherit;background:var(--soft);color:var(--ink)}
+input:focus{outline:2px solid var(--lime);border-color:transparent;background:#fff}
+.chk{display:flex;gap:9px;align-items:flex-start;margin:7px 0;cursor:pointer;font-size:13.5px}
+.chk input{margin-top:3px;accent-color:var(--lime-d)}
+.hint{font-size:12px;color:var(--mute);line-height:1.45}
+.btn{border:1px solid var(--line);background:#fff;border-radius:10px;padding:8px 12px;color:var(--ink);font-weight:600;font-size:13px}
+.btn:hover{border-color:#bfcab8}
+.btn.dark{background:var(--ink);color:#fff;border-color:var(--ink)}
+.btn.lime{background:var(--lime);border-color:var(--lime);color:var(--ink)}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.keybox{font:12px var(--f-m);background:var(--ink);color:#d9f5bf;padding:11px 12px;border-radius:11px;word-break:break-all}
+.keybox.empty{background:var(--warn-bg);color:var(--warn);font-family:var(--f-b)}
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:6px;background:var(--soft);border:1px solid var(--line);border-radius:12px;padding:4px}
+.seg label{display:block;text-align:center;padding:8px 6px;border-radius:9px;cursor:pointer;font-size:12.5px;font-weight:600;color:var(--mute)}
+.seg input{position:absolute;opacity:0;pointer-events:none}
+.seg input:checked+span{color:var(--ink)}
+.seg label:has(input:checked){background:#fff;box-shadow:0 1px 3px rgba(20,30,15,.12)}
+details summary{cursor:pointer;color:var(--ink2);font-weight:600;font-size:13px;margin-top:10px}
+
+.presets{display:flex;flex-wrap:wrap;gap:8px;margin:4px 0 14px}
+.presets button{border:1px solid #cfe9b8;background:var(--lime-bg);color:var(--lime-ink);border-radius:99px;padding:6px 13px;font-weight:600;font-size:12.5px}
+.presets button:hover{background:#e2f5cf}
+.presets button.hot{background:var(--lime,#8bd450);border-color:transparent;color:#0f1a06}
+.suites{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}
+.suite{border:1px solid var(--line);border-radius:14px;padding:12px 14px;background:var(--soft);transition:border-color .15s,background .15s}
+.suite.on{border-color:#b9e095;background:#f6fcef}
+.suite h3{font:700 14px var(--f-d);margin:0 0 6px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.suite h3 label{font:500 12px var(--f-b);color:var(--mute);display:flex;gap:5px;align-items:center}
+.names{margin-top:16px;border:1px solid #f0d9a8;background:#fffaf0;border-radius:14px;padding:14px 16px}
+.names h3{font:700 14px var(--f-d);margin:0 0 2px}
+.names .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px 14px;margin-top:8px}
+.names label.f{margin:6px 0 4px}
+.names input.missing{outline:2px solid var(--bad);background:#fff5f5}
+.runbar{position:sticky;bottom:0;display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:16px -18px -18px;padding:14px 18px;background:rgba(255,255,255,.94);backdrop-filter:blur(6px);border-top:1px solid var(--line);border-radius:0 0 16px 16px}
+.go{background:var(--ink);color:#fff;border:0;border-radius:12px;padding:12px 22px;font:700 15px var(--f-d);display:inline-flex;gap:8px;align-items:center}
+.go:hover{background:#2b352a}.go:disabled{opacity:.4;cursor:not-allowed}
+.stop{background:#fff;color:var(--bad);border:1px solid #f1c6c6;border-radius:12px;padding:11px 16px;font-weight:700}
+.err-banner{display:none;background:var(--bad-bg);color:var(--bad);padding:10px 12px;border-radius:10px;margin-top:12px;font-weight:500}
+
+.kpis{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin-bottom:14px}
+@media(max-width:700px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.kpi{border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:var(--soft);font-size:12px;color:var(--mute)}
+.kpi b{display:block;font:800 22px var(--f-d);color:var(--ink);margin-top:2px}
+.kpi.ok b{color:var(--ok)}.kpi.bad b{color:var(--bad)}
+.tabs{display:flex;gap:2px;border-bottom:1px solid var(--line);margin-bottom:12px;overflow-x:auto}
+.tabs button{border:0;background:none;padding:9px 13px;color:var(--mute);border-bottom:2px solid transparent;font-weight:600;white-space:nowrap}
+.tabs button.on{color:var(--ink);border-color:var(--ink)}
+.tabs .cnt{font:600 11px var(--f-b);background:var(--bad);color:#fff;border-radius:99px;padding:1px 7px;margin-left:5px}
+.tabs .cnt:empty{display:none}
+.steps{list-style:none;margin:0;padding:0;max-height:520px;overflow:auto}
+.steps li{display:grid;grid-template-columns:18px 1fr auto;gap:10px;padding:9px 6px;border-bottom:1px solid #eef2ea;align-items:start}
 .steps .d{grid-column:2/4;font-size:12px;color:var(--mute);margin-top:-4px;word-break:break-word}
-.steps .d.err{color:var(--red)}
-.dot{width:16px;height:16px;border-radius:50%;margin-top:2px;background:#dfe5dc}
-.dot.running{background:var(--lime);animation:p 1s infinite}
-.dot.passed{background:#5fa52b}.dot.failed{background:var(--red)}
-@keyframes p{50%{opacity:.4}}
-.log{font-family:'JetBrains Mono',monospace;font-size:12px;background:#121712;color:#cdd8c9;border-radius:10px;padding:12px;height:440px;overflow:auto;white-space:pre-wrap}
+.steps .d.err{color:var(--bad)}
+.dot{width:14px;height:14px;border-radius:50%;margin-top:3px;background:#dbe2d6}
+.dot.running{background:var(--lime);animation:pulse 1s infinite}.dot.passed{background:var(--ok)}.dot.failed{background:var(--bad)}
+.log{font:12px/1.55 var(--f-m);background:#111611;color:#cdd8c9;border-radius:12px;padding:12px;height:520px;overflow:auto;white-space:pre-wrap}
 .log .ok{color:#a6e46b}.log .error{color:#ff8a8a}.log .warn{color:#f5c26b}.log .head{color:#fff;font-weight:600}
+.tbl{overflow-x:auto}
 table.api{width:100%;border-collapse:collapse;font-size:12.5px}
-table.api td,table.api th{padding:6px 8px;border-bottom:1px solid #f0f3ee;text-align:left}
-.code{font-family:'JetBrains Mono',monospace}
-.s2{color:#2d7a12}.s4,.s5,.s0{color:var(--red)}
-.hist a{color:var(--blue);text-decoration:none}
-.hist div{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f0f3ee;font-size:12.5px}
-.err-banner{background:var(--red2);color:var(--red);padding:10px 12px;border-radius:9px;margin-top:10px;display:none}
-.runbar{display:flex;gap:10px;align-items:center;margin-top:14px;flex-wrap:wrap}
-.live{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fcfdfb}.live img{display:block;width:100%;height:auto}.live img:not([src]){display:none}.urlbar{font-family:'JetBrains Mono',monospace;font-size:12px;padding:7px 10px;background:#eef2eb;color:var(--ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.live .hint{padding:16px}
-details summary{cursor:pointer;color:var(--ink2);font-weight:500;margin-top:6px}
+table.api td,table.api th{padding:7px 8px;border-bottom:1px solid #eef2ea;text-align:left;white-space:nowrap}
+table.api td.p{white-space:normal;word-break:break-all}
+.code{font-family:var(--f-m)}
+.s2{color:var(--ok)}.s4,.s5,.s0{color:var(--bad);font-weight:600}
+.fail{border:1px solid #f1caca;border-radius:12px;margin-bottom:10px;background:#fff;overflow:hidden}
+.fail summary{list-style:none;display:grid;grid-template-columns:auto auto minmax(0,1fr) auto;gap:10px;align-items:center;padding:10px 12px;cursor:pointer;background:#fff7f7}
+.fail summary::-webkit-details-marker{display:none}
+.fail .m{font:700 11px var(--f-m);background:var(--ink);color:#fff;border-radius:6px;padding:2px 6px}
+.fail .st{font:700 12px var(--f-m);color:var(--bad)}
+.fail .u{font:12px var(--f-m);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fail .meta{font-size:11.5px;color:var(--mute)}
+.fail .body{padding:4px 12px 12px;display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media(max-width:800px){.fail .body{grid-template-columns:1fr}}
+.fail h4{margin:8px 0 4px;font:700 12px var(--f-d);color:var(--ink2);text-transform:uppercase;letter-spacing:.5px}
+.fail pre{margin:0;background:#141914;color:#d4e3cf;border-radius:9px;padding:10px;font:11.5px/1.5 var(--f-m);max-height:260px;overflow:auto;white-space:pre-wrap;word-break:break-word}
+.empty{padding:22px;text-align:center;color:var(--mute);border:1px dashed var(--line);border-radius:12px}
+.live{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--soft)}
+.live img{display:block;width:100%;height:auto}.live img:not([src]){display:none}
+.urlbar{font:12px var(--f-m);padding:8px 12px;background:#e9efe4;color:var(--ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.live .empty{border:0}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
 <body>
-<header>
-  <div class="logo"><img src="/revinci-logo.svg" alt="Revinci"></div>
-  <h1>Revinci <small>Test Automation</small></h1>
-  <div class="sp"></div>
-  <span id="status" class="badge">Idle</span>
-</header>
+<div class="band"><div class="in">
+  <div class="top">
+    <div class="mark"><img src="/revinci-logo.svg" alt="Revinci"></div>
+    <div class="brand">Revinci <small>Test Automation</small></div>
+    <div class="sp"></div>
+    <span id="status" class="status"><i></i><span>Idle</span></span>
+  </div>
+  <div class="runs" id="history"></div>
+</div></div>
 
 <main>
 <aside>
   <section class="card">
-    <h2>Workspace</h2>
+    <h2><span class="n">1</span>Workspace</h2>
+    <p class="sub">Your password is used for this run only and never saved.</p>
     <label class="f" for="baseUrl">Revinci URL</label>
-    <input id="baseUrl" type="url" placeholder="https://tessla-workspace-dev.revinci.ai/dashboard/crm/account">
+    <input id="baseUrl" type="url" placeholder="https://tessla-workspace-dev.revinci.ai/dashboard">
     <label class="f" for="email">User name (email)</label>
     <input id="email" type="email" autocomplete="username">
     <label class="f" for="password">Password</label>
     <input id="password" type="password" autocomplete="current-password">
-    <div class="hint">Password is used only for this run and is never saved.</div>
-    <label class="chk"><input id="remember" type="checkbox" checked> Remember URL &amp; email on this computer</label>
+    <label class="chk"><input id="remember" type="checkbox" checked> Remember URL and email on this computer</label>
   </section>
 
   <section class="card">
-    <h2>API key</h2>
-    <div id="keyInfo" class="keybox empty">No key stored for this workspace yet.</div>
-    <div class="row" style="margin-top:6px"><button class="ghost" id="reveal" hidden>Reveal</button><button class="ghost" id="copy" hidden>Copy</button></div>
-    <label class="f" for="apiKey">Paste existing key (optional)</label>
-    <input id="apiKey" type="password" placeholder="rvc_…">
-    <label class="chk"><input id="rotateKey" type="checkbox"> Revoke the active key &amp; create a new one</label>
-    <div class="hint">Revinci allows one active key and shows its secret only once. Without a stored or pasted key, the run creates one only if none is active.</div>
+    <h2><span class="n">2</span>API key</h2>
+    <p class="sub">Revinci allows one active key and shows its secret once. Paste yours and save it, so API steps and tests can use it.</p>
+    <div id="keyInfo" class="keybox empty">No key saved for this workspace yet.</div>
+    <div class="row" style="margin-top:8px"><button class="btn" id="reveal" type="button" hidden>Reveal</button><button class="btn" id="copy" type="button" hidden>Copy</button></div>
+    <label class="f" for="apiKey">Paste API key</label>
+    <div class="row" style="flex-wrap:nowrap"><input id="apiKey" type="password" placeholder="rvc_…"><button class="btn lime" id="saveKey" type="button">Save</button></div>
+    <div class="hint" id="keyMsg" role="status"></div>
+    <label class="chk" style="margin-top:10px"><input id="rotateKey" type="checkbox"> Revoke the active key in Revinci and create a new one</label>
   </section>
 
   <section class="card">
-    <h2>Run settings</h2>
-    <label class="chk" id="headlessRow"><input id="headless" type="checkbox"> Run in background (headless)</label>
-    <div class="hint" id="hostedNote" hidden>Hosted mode: the browser runs on the server — watch it in the Live view tab.</div>
+    <h2><span class="n">3</span>Run settings</h2>
+    <label class="f">Waiting for screens</label>
+    <div class="seg">
+      <label><input type="radio" name="wait" value="standard" checked><span>Standard (20 s)</span></label>
+      <label><input type="radio" name="wait" value="visible"><span>Until visible</span></label>
+    </div>
+    <div class="hint" id="waitHint" style="margin-top:6px">Each step waits up to 20 seconds for its button or page.</div>
+    <div id="waitMaxRow" hidden><label class="f" for="waitMax">Give up after (minutes)</label><input id="waitMax" type="number" value="10" min="1" max="60"></div>
+    <label class="chk" id="headlessRow" style="margin-top:12px"><input id="headless" type="checkbox"> Run in background (headless)</label>
+    <div class="hint" id="hostedNote" hidden>Hosted mode: the browser runs on the server. Watch it in Live view.</div>
     <label class="chk"><input id="video" type="checkbox"> Record video</label>
     <label class="f" for="slowMo">Step speed (ms delay)</label>
     <input id="slowMo" type="number" value="120" min="0" max="2000">
     <details><summary>Advanced</summary>
       <label class="f" for="apiBase">API base URL (auto-detected)</label><input id="apiBase" type="text" placeholder="https://api-dev.revinci.ai">
-      <label class="f" for="product">Product to sell (code or name)</label><input id="product" type="text" placeholder="defaults to the product created in this run">
-      <label class="f" for="account">Account for quote/order</label><input id="account" type="text" placeholder="defaults to the account created in this run">
       <label class="f" for="planNumber">Plan number for usage events</label><input id="planNumber" type="text" placeholder="defaults to the activated entitlement">
     </details>
-  </section>
-
-  <section class="card hist">
-    <h2>Recent runs</h2>
-    <div id="history"><span class="hint">No runs yet.</span></div>
   </section>
 </aside>
 
 <section>
   <section class="card">
-    <h2>What do you want to test?</h2>
+    <h2><span class="n">4</span>What do you want to test?</h2>
     <div class="presets">
-      <button data-preset="admin">Admin setup</button>
-      <button data-preset="products">Product setup</button>
-      <button data-preset="q2c">Quote → Order → Entitlement</button>
-      <button data-preset="api">API testing</button>
-      <button data-preset="full">Full end-to-end</button>
-      <button data-preset="none">Clear</button>
+      <button type="button" data-preset="order" class="hot">Account → Order → Entitlement</button>
+      <button type="button" data-preset="admin">Admin setup</button>
+      <button type="button" data-preset="products">Product setup</button>
+      <button type="button" data-preset="q2c">Quote → Order → Entitlement</button>
+      <button type="button" data-preset="api">API testing</button>
+      <button type="button" data-preset="full">Full end-to-end</button>
+      <button type="button" data-preset="none">Clear</button>
     </div>
     <div id="suites" class="suites"></div>
+    <div class="names" id="namesBox" hidden>
+      <h3>Names for this run</h3>
+      <div class="hint">Required for each selected item. The run tag is added so every run creates fresh records.</div>
+      <div class="grid" id="names"></div>
+    </div>
+    <div class="err-banner" id="err" role="alert"></div>
     <div class="runbar">
-      <button class="primary" id="run">▶ Run tests</button>
-      <button class="danger" id="stop" hidden>Stop</button>
+      <button class="go" id="run" type="button">▶ Run tests</button>
+      <button class="stop" id="stop" type="button" hidden>Stop</button>
       <span class="hint" id="planHint"></span>
     </div>
-    <div class="err-banner" id="err"></div>
   </section>
 
   <section class="card">
-    <div class="tabs"><button data-tab="live">Live view</button><button class="on" data-tab="steps">Steps</button><button data-tab="log">Live log</button><button data-tab="apis">API calls</button></div>
     <div class="kpis">
-      <div class="kpi">Passed<b id="kp" style="color:#2d7a12">0</b></div>
-      <div class="kpi">Failed<b id="kf" style="color:var(--red)">0</b></div>
+      <div class="kpi ok">Passed<b id="kp">0</b></div>
+      <div class="kpi bad">Failed<b id="kf">0</b></div>
       <div class="kpi">Steps<b id="kt">0</b></div>
-      <div class="kpi">Data tag<b id="ktag" style="font-size:15px;margin-top:6px">—</b></div>
-      <div class="kpi" id="reportBox" hidden>Report<b style="font-size:14px;margin-top:7px"><a id="reportLink" target="_blank">Open ↗</a></b></div>
+      <div class="kpi bad">Failed APIs<b id="ka">0</b></div>
+      <div class="kpi">Data tag<b id="ktag" style="font-size:16px;margin-top:6px">—</b></div>
     </div>
-    <div data-pane="live" hidden><div class="live"><div class="urlbar" id="liveUrl">Waiting for a run…</div><img id="screen" alt="Automation browser live view"><div class="hint" id="liveHint">The automation browser appears here while a run is in progress.</div></div></div>
-    <div data-pane="steps"><ul class="steps" id="steps"><li><span></span><span class="hint">Pick options above and click Run.</span></li></ul></div>
+    <div class="row" id="reportBox" hidden style="margin:-4px 0 12px"><a class="btn dark" id="reportLink" target="_blank" style="text-decoration:none">Open full report ↗</a></div>
+    <div class="tabs" role="tablist">
+      <button type="button" data-tab="live">Live view</button>
+      <button type="button" class="on" data-tab="steps">Steps</button>
+      <button type="button" data-tab="log">Live log</button>
+      <button type="button" data-tab="apis">API calls</button>
+      <button type="button" data-tab="fails">Failed APIs<span class="cnt" id="failCnt"></span></button>
+    </div>
+    <div data-pane="live" hidden><div class="live"><div class="urlbar" id="liveUrl">Waiting for a run…</div><img id="screen" alt="Automation browser live view"><div class="empty" id="liveHint">The automation browser appears here while a run is in progress.</div></div></div>
+    <div data-pane="steps"><ul class="steps" id="steps"><li><span></span><span class="hint">Pick tests above and click Run.</span></li></ul></div>
     <div data-pane="log" hidden><div class="log" id="log"></div></div>
-    <div data-pane="apis" hidden><table class="api"><thead><tr><th>Method</th><th>Path</th><th>Status</th><th>ms</th><th>Auth</th></tr></thead><tbody id="apis"></tbody></table></div>
+    <div data-pane="apis" hidden><div class="tbl"><table class="api"><thead><tr><th>Method</th><th>Path</th><th>Status</th><th>ms</th><th>Auth</th></tr></thead><tbody id="apis"></tbody></table></div></div>
+    <div data-pane="fails" hidden><div id="fails"><div class="empty">No failed API calls yet. When a screen or API test gets an error, its request headers, payload and response appear here.</div></div></div>
   </section>
 </section>
 </main>

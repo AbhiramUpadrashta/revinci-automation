@@ -3,6 +3,11 @@
 // dropdowns are .ant-select; dates are .ant-picker in DD-MM-YYYY; toasts are .ant-message / .ant-notification.
 const { waitIdle } = require('./ui');
 
+// Wait mode: 'standard' uses the given timeout; 'visible' keeps waiting for required elements up to the max.
+const WAIT = { mode: 'standard', maxMs: 10 * 60 * 1000 };
+function setWait(mode, maxMin) { WAIT.mode = mode === 'visible' ? 'visible' : 'standard'; WAIT.maxMs = Math.max(1, Number(maxMin) || 10) * 60 * 1000; }
+const to = ms => (WAIT.mode === 'visible' ? Math.max(ms, WAIT.maxMs) : ms);
+
 const clean = s => String(s || '').replace(/\*/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
 const esc = s => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -16,7 +21,7 @@ async function fill(page, label, value, { id } = {}) {
   if (value === undefined || value === null) return;
   let el = id ? page.locator(`#${id}`).first() : null;
   if (!el || !(await el.count())) el = item(page, label).locator('input:not([type=hidden]):not(.ant-select-selection-search-input), textarea').first();
-  await el.waitFor({ state: 'visible', timeout: 15000 });
+  await el.waitFor({ state: 'visible', timeout: to(15000) });
   await el.click();
   await el.fill('');
   await el.fill(String(value));
@@ -25,7 +30,7 @@ async function fill(page, label, value, { id } = {}) {
 async function openSelect(page, label, { id } = {}) {
   let sel = id ? page.locator(`.ant-select:has(#${id})`).first() : null;
   if (!sel || !(await sel.count())) sel = item(page, label).locator('.ant-select').first();
-  await sel.waitFor({ state: 'visible', timeout: 15000 });
+  await sel.waitFor({ state: 'visible', timeout: to(15000) });
   await sel.locator('.ant-select-selector').click();
   await page.waitForTimeout(400);
   return sel;
@@ -55,7 +60,7 @@ async function select(page, label, text, opts = {}) {
 async function selectFirst(page, label, opts = {}) {
   await openSelect(page, label, opts);
   const options = dropdown(page).locator('.ant-select-item-option:not(.ant-select-item-option-disabled)');
-  await options.first().waitFor({ state: 'visible', timeout: 10000 });
+  await options.first().waitFor({ state: 'visible', timeout: to(10000) });
   let idx = 0;
   if (opts.avoid) {
     const n = await options.count();
@@ -106,6 +111,39 @@ function fmt(d) {
   return `${p(d.getDate())}-${p(d.getMonth() + 1)}-${d.getFullYear()}`;
 }
 
+// Price UOM: type the value into the dropdown's search box, pick the matching
+// option from the pick list, and confirm it is shown as selected.
+async function priceUom(page, value = 'Each') {
+  const labels = ['Price UOM', 'Price Uom', 'Price Unit of Measure', 'UOM', 'Unit of Measure'];
+  let fi = null;
+  for (const l of labels) {
+    const cand = item(page, l);
+    if (await cand.count() && await cand.isVisible().catch(() => false)) { fi = cand; break; }
+  }
+  if (!fi) throw new Error('Price UOM field not found on this screen');
+  const sel = fi.locator('.ant-select').first();
+  await sel.scrollIntoViewIfNeeded().catch(() => {});
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    await sel.locator('.ant-select-selector').click();
+    const search = sel.locator('input.ant-select-selection-search-input');
+    if (await search.count()) {
+      await search.fill('');
+      await search.pressSequentially(value, { delay: 60 });
+    }
+    const dd = page.locator('.ant-select-dropdown:not(.ant-select-dropdown-hidden)').last();
+    const exact = dd.locator('.ant-select-item-option').filter({ hasText: new RegExp(`^\\s*${esc(value)}\\s*$`, 'i') }).first();
+    const loose = dd.locator('.ant-select-item-option').filter({ hasText: new RegExp(esc(value), 'i') }).first();
+    try { await exact.or(loose).first().waitFor({ state: 'visible', timeout: 6000 }); } catch (_) {
+      await page.keyboard.press('Escape'); await page.waitForTimeout(500); continue;
+    }
+    await ((await exact.count()) ? exact : loose).click();
+    await page.waitForTimeout(400);
+    const shown = (await sel.locator('.ant-select-selection-item').first().innerText().catch(() => '')).trim();
+    if (shown.toLowerCase().includes(value.toLowerCase())) return shown;
+  }
+  throw new Error(`Price UOM: could not select "${value}" from the pick list`);
+}
+
 async function checkbox(page, text, on = true) {
   const w = page.locator('.ant-checkbox-wrapper:visible', { hasText: new RegExp(esc(text), 'i') }).first();
   const checked = await w.locator('.ant-checkbox-checked').count();
@@ -124,6 +162,7 @@ async function segment(page, text) {
 
 // Click a visible button by its text (icons and "+" prefixes ignored).
 async function button(page, text, { exact = true, within, timeout = 15000 } = {}) {
+  timeout = to(timeout);
   const scope = within || page;
   const re = exact ? new RegExp(`^\\s*\\+?\\s*${esc(text)}\\s*(→)?\\s*$`, 'i') : new RegExp(esc(text), 'i');
   const b = scope.locator('button:visible, [role=button]:visible, a.ant-btn:visible').filter({ hasText: re }).first();
@@ -170,4 +209,4 @@ async function rowExists(page, text) {
   return (await page.locator(`text=${text}`).count()) > 0;
 }
 
-module.exports = { item, fill, select, selectFirst, optionsOf, tags, date, dateRange, fmt, checkbox, switchOn, segment, button, hasButton, buttonAny, toast, rowExists, clean };
+module.exports = { setWait, to, WAIT, priceUom, item, fill, select, selectFirst, optionsOf, tags, date, dateRange, fmt, checkbox, switchOn, segment, button, hasButton, buttonAny, toast, rowExists, clean };

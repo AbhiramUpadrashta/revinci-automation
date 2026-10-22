@@ -2,14 +2,14 @@
 // (activate, map external plan ID) → usage event against the plan.
 const a = require('../ant');
 const { waitIdle } = require('../ui');
-const { go } = require('./admin');
+const { go, nameFor } = require('./admin');
 const http = require('../http');
 
 const title = 'Quote · Order · Entitlement';
 const OPTIONS = [
   { id: 'quote', label: 'Create quote, add to bag, finalize & move through lifecycle' },
-  { id: 'order', label: 'Create order, add to bag & finalize' },
-  { id: 'entitlement', label: 'Activate entitlement & map external plan ID' },
+  { id: 'order', label: 'Create order (type account), add first agent, LLM popup, finalize' },
+  { id: 'entitlement', label: 'Open first entitlement & activate (today)' },
   { id: 'usage', label: 'Send a usage event to the plan (needs API key)' },
 ];
 
@@ -53,7 +53,7 @@ async function quote(run) {
   await go(run, '/dashboard/cpq/quote');
   await a.button(page, 'Quote');
   await waitIdle(page, 1500);
-  const name = `AT Quote ${run.tag}`;
+  const name = nameFor(run, 'q2c.quote', 'AT Quote');
   await a.fill(page, 'Name', name, { id: 'name' });
   const acct = await pickAccount(page, run, 'Account Id', 'accountId');
   await a.select(page, 'Currency Id', 'USD', { id: 'currencyId', optional: true }) || await a.selectFirst(page, 'Currency Id', { id: 'currencyId' });
@@ -79,94 +79,149 @@ async function quote(run) {
   return `${name} · ${acct} · ${item} · ${trail.join(' → ') || 'no lifecycle buttons shown'}`;
 }
 
+// Always go to the Accounts screen and copy the name of the first account in the list.
+async function accountName(run) {
+  const { page } = run;
+  await go(run, '/dashboard/crm/account');
+  const cell = page.locator('.ag-row[row-index="0"] [col-id="name"]').first();
+  await cell.waitFor({ state: 'visible', timeout: a.to(20000) });
+  const n = (await cell.innerText()).trim();
+  if (!n || n === '-') throw new Error('Could not read the first account name on the Accounts screen');
+  run.log(`  copied first account on the Accounts screen: ${n}`);
+  return n;
+}
+
+// Type the account name into the Account select and take the first result.
+async function typeAccount(run, name) {
+  const { page } = run;
+  const sel = a.item(page, 'Account').locator('.ant-select').first();
+  await sel.waitFor({ state: 'visible', timeout: a.to(20000) });
+  await sel.locator('.ant-select-selector').click();
+  const search = sel.locator('input.ant-select-selection-search-input');
+  await search.fill('');
+  await search.pressSequentially(name, { delay: 40 });
+  const first = page.locator('.ant-select-dropdown:not(.ant-select-dropdown-hidden) .ant-select-item-option').first();
+  await first.waitFor({ state: 'visible', timeout: a.to(15000) });
+  const picked = (await first.innerText()).trim();
+  await first.click();
+  await page.waitForTimeout(400);
+  return picked;
+}
+
+// antd date picker → "Today" link in its footer.
+async function pickToday(page, input) {
+  await input.click();
+  const today = page.locator('.ant-picker-dropdown:not(.ant-picker-dropdown-hidden) .ant-picker-now-btn, .ant-picker-dropdown:not(.ant-picker-dropdown-hidden) .ant-picker-today-btn').first();
+  if (await today.isVisible({ timeout: 3000 }).catch(() => false)) await today.click();
+  else { await input.fill(a.fmt(new Date())); await input.press('Enter'); }
+  await page.waitForTimeout(400);
+  return input.inputValue().catch(() => '');
+}
+
+async function selectByLabel(page, label, want) {
+  const fi = a.item(page, label);
+  if (!(await fi.count()) || !(await fi.isVisible().catch(() => false))) return null;
+  return await a.select(page, label, want, { optional: true, search: false }) || await a.selectFirst(page, label);
+}
+
+// LLM / cost-profile popup after "Add to bag": pick the first option in every dropdown, then Configure.
+async function costProfilePopup(run) {
+  const { page } = run;
+  const modal = page.locator('.ant-modal-wrap:visible').filter({ hasText: /Configure Cost Profiles|LLM/i }).first();
+  if (!(await modal.isVisible({ timeout: 4000 }).catch(() => false))) return 'no LLM popup';
+  const picked = [];
+  const sels = modal.locator('.ant-select');
+  const n = await sels.count();
+  for (let i = 0; i < n; i++) {
+    await sels.nth(i).locator('.ant-select-selector').click();
+    const opt = page.locator('.ant-select-dropdown:not(.ant-select-dropdown-hidden) .ant-select-item-option').first();
+    if (await opt.isVisible({ timeout: 5000 }).catch(() => false)) { picked.push((await opt.innerText()).trim()); await opt.click(); }
+    else await page.keyboard.press('Escape');
+    await page.waitForTimeout(300);
+  }
+  await a.button(page, 'Configure Cost Profiles', { within: modal }).catch(() => a.button(page, 'Configure', { exact: false, within: modal }));
+  await a.toast(page, 10000).catch(() => '');
+  return `LLM popup → ${picked.join(', ') || 'no dropdowns'} → Configure`;
+}
+
 async function order(run) {
   const { page } = run;
+  const acct = await accountName(run);
   await go(run, '/dashboard/orders/new');
-  const name = `AT Order ${run.tag}`;
+  const name = nameFor(run, 'q2c.order', 'AT Order');
   const number = `ORD-${run.tag}`;
-  const acct = await pickAccount(page, run, 'Account');
+  const picked = await typeAccount(run, acct);
+  if (picked !== acct) throw new Error(`Account pick list showed "${picked}" first, expected "${acct}"`);
   await a.fill(page, 'Name', name, { id: 'name' });
   await a.fill(page, 'Number', number, { id: 'quoteNumber' });
   await a.fill(page, 'Description', 'Created by Revinci Test Automation', { id: 'description' });
-  const start = new Date();
-  await a.date(page, 'startDate', start);
-  const ppd = new Date(); ppd.setMonth(ppd.getMonth() + 6);
-  await a.date(page, 'priceProtectionDate', ppd).catch(() => {});
-  await a.select(page, 'Billing Frequency', 'Monthly', { optional: true }) || await a.selectFirst(page, 'Billing Frequency');
-  await a.segment(page, '30 Days');
-  await a.select(page, 'Currency', 'USD', { optional: true }) || await a.selectFirst(page, 'Currency');
-  await a.select(page, 'Rate Type', 'Budgeted', { optional: true }) || await a.selectFirst(page, 'Rate Type');
+  const start = await pickToday(page, a.item(page, 'Start Date').locator('.ant-picker input').first());
+  await selectByLabel(page, 'Billing Frequency', 'Monthly');
+  await a.segment(page, '30 Days').catch(() => {});
+  await selectByLabel(page, 'Currency', 'USD');
+  await selectByLabel(page, 'Rate Type', 'Budgeted'); // only shown for non-base currencies
   await a.button(page, 'Continue');
-  await a.toast(page).catch(() => '');
-  await waitIdle(page, 2500);
-  run.data.order = { name, number, account: acct, url: page.url() };
-  const item = await addToBag(run, productToSell(run));
-  const fin = await a.buttonAny(page, ['Finalize', 'Finalize Order'], 8000);
-  if (!fin) throw new Error('Finalize button not found on the order bag');
-  await a.buttonAny(page, ['Yes', 'Confirm', 'OK', 'Finalize'], 3000);
-  await a.toast(page).catch(() => '');
-  return `${name} (${number}) · ${acct} · ${item} · finalized`;
+  await page.waitForURL(u => /\/dashboard\/orders\/[0-9a-f-]{36}/.test(String(u)), { timeout: a.to(30000) });
+  run.data.order = { name, number, account: picked, url: page.url() };
+
+  // Bag: click the first product (agent) in the left list, then Add to bag.
+  const list = page.locator('input[placeholder="Search products"]').locator('xpath=ancestor::div[contains(@class,"w-1/4")][1]');
+  const firstItem = list.locator('.space-y-1 > div.cursor-pointer').first();
+  await firstItem.waitFor({ state: 'visible', timeout: a.to(30000) });
+  const product = (await firstItem.innerText()).split('\n').pop().trim();
+  await firstItem.click();
+  await waitIdle(page, 1500);
+  await a.button(page, 'Add to bag', { timeout: 30000 });
+  const popup = await costProfilePopup(run);
+  await a.button(page, 'Finalize', { timeout: 30000 });
+  await a.buttonAny(page, ['Yes', 'Confirm', 'OK'], 2500);
+  await page.waitForURL(u => /\/dashboard\/orders\/?(\?.*)?$/.test(String(u)), { timeout: a.to(30000) }).catch(() => {});
+  run.data.order.product = product;
+  return `${name} (${number}) · account ${picked} · start ${start} · ${product} added · ${popup} · finalized`;
 }
 
-async function findEntitlement(run) {
-  const target = run.data.order?.name || run.data.quote?.name;
-  for (let i = 0; i < 10; i++) {
-    const res = await http.call(run, 'GET', '/revenue-management/api/v1/revenue-entitlements?page=0&size=50&sort=createdDate,desc', null, { auth: 'session' });
-    const list = http.items(res.body);
-    const hit = list.find(e => target && JSON.stringify(e).includes(target)) || (target ? null : list[0]);
-    if (hit) return hit;
-    await new Promise(r => setTimeout(r, 3000));
-  }
-  return null;
-}
-
+// Entitlement list → open the first entitlement (eye button) → Activate → Activation Date = today → Activate.
 async function entitlement(run) {
   const { page } = run;
-  const ent = await findEntitlement(run);
-  if (!ent) throw new Error(`No entitlement found for ${run.data.order?.name || 'the order'} — finalize the order first`);
-  run.data.entitlement = { id: ent.id, name: ent.name, status: ent.status };
-  await go(run, `/dashboard/revenueEntitlement/${ent.id}`);
-  if (!(await a.hasButton(page, 'Activate', 4000))) {
-    await go(run, '/dashboard/revenueEntitlement');
-    await page.getByText(ent.name).first().click();
-    await waitIdle(page, 2000);
+  await go(run, '/dashboard/revenueEntitlement');
+  const target = run.data.order?.name;
+  await page.locator('.ag-row[row-index="0"]').first().waitFor({ state: 'visible', timeout: a.to(30000) });
+  let idx = 0;
+  if (target) {
+    for (let i = 0; i < 20; i++) {
+      const names = await page.locator('.ag-pinned-left-cols-container .ag-row').allInnerTexts();
+      const k = names.findIndex(t => t.trim() === target);
+      if (k >= 0) { idx = Number(await page.locator('.ag-pinned-left-cols-container .ag-row').nth(k).getAttribute('row-index')); break; }
+      await page.waitForTimeout(3000); await page.reload({ waitUntil: 'domcontentloaded' }); await waitIdle(page, 1500);
+    }
   }
-  let activated = false;
-  if (await a.buttonAny(page, ['Activate'], 6000)) {
-    const picker = page.locator('.ant-modal:visible .ant-picker input').first();
-    if (await picker.count()) { await picker.click(); await picker.fill(a.fmt(new Date())); await picker.press('Enter'); }
-    await a.buttonAny(page, ['Confirm', 'Activate', 'Yes', 'OK'], 4000);
-    await a.toast(page).catch(() => '');
-    activated = true;
+  const entName = (await page.locator(`.ag-pinned-left-cols-container .ag-row[row-index="${idx}"]`).innerText().catch(() => '')).trim();
+  await page.locator(`.ag-pinned-right-cols-container .ag-row[row-index="${idx}"] button`).first().click();
+  await page.waitForURL(u => /revenueEntitlement\/[0-9a-f-]{36}/.test(String(u)), { timeout: a.to(20000) });
+  const id = page.url().match(/revenueEntitlement\/([0-9a-f-]{36})/)[1];
+  run.data.entitlement = { id, name: entName };
+  await a.button(page, 'Activate', { timeout: 30000 });
+  const modal = page.locator('.ant-modal-wrap:visible').last();
+  const dateInput = modal.locator('.ant-picker input').first();
+  await dateInput.waitFor({ state: 'visible', timeout: a.to(15000) });
+  const d = await pickToday(page, dateInput);
+  if (await modal.isVisible().catch(() => false)) {
+    const btn = modal.locator('button').filter({ hasText: /^\s*Activate\s*$/ }).first();
+    if (await btn.isVisible().catch(() => false)) await btn.click();
   }
-  const ext = `WT-${run.tag}`;
-  let mapped = false;
-  const kebab = page.locator('button:has(.anticon-more), button:has(.anticon-ellipsis), [aria-label*="more" i]').first();
-  if (await kebab.count()) {
-    await kebab.click();
-    const m = page.getByText(/map external id/i).first();
-    if (await m.isVisible().catch(() => false)) {
-      await m.click();
-      const inp = page.locator('.ant-modal:visible input[type=text], .ant-modal:visible input:not([type])').first();
-      await inp.fill(ext);
-      await a.buttonAny(page, ['Save', 'Map', 'Confirm', 'OK'], 3000);
-      await a.toast(page).catch(() => '');
-      mapped = true;
-    } else await page.keyboard.press('Escape');
-  }
-  run.data.entitlement.externalPlanId = mapped ? ext : null;
-  const after = await http.call(run, 'GET', `/revenue-management/api/v1/revenue-entitlements/${ent.id}`, null, { auth: 'session' });
-  const status = after.body?.status || '?';
-  const plans = await http.call(run, 'GET', `/revenue-management/api/v1/plans/entitlement/${ent.id}`, null, { auth: 'session' });
-  const planList = http.items(plans.body);
-  run.data.entitlement.status = status;
+  await a.toast(page, 8000).catch(() => '');
+  const ok = await page.locator('button:visible').filter({ hasText: /^\s*Generate Invoice\s*$/ }).first().waitFor({ timeout: a.to(20000) }).then(() => true).catch(() => false);
+  if (!ok && await a.hasButton(page, 'Activate', 1500)) throw new Error('Entitlement still shows "Activate" after confirming');
+  run.data.entitlement.status = 'Active';
+  run.data.entitlement.activationDate = d;
+  const plans = await http.call(run, 'GET', `/revenue-management/api/v1/plans/entitlement/${id}`, null, { auth: 'session' }).catch(() => null);
+  const planList = plans ? http.items(plans.body) : [];
   run.data.entitlement.planNumber = planList[0]?.planNumber || planList[0]?.number || null;
-  run.data.entitlement.planId = planList[0]?.id || null;
-  return `${ent.name} · ${activated ? 'activated' : 'Activate button not shown'} · status ${status} · ${mapped ? 'external ID ' + ext : 'external ID not mapped'} · ${planList.length} plan(s)`;
+  return `${entName || id} · activated on ${d} · Active${planList.length ? ` · ${planList.length} plan(s)` : ''}`;
 }
 
 async function usage(run) {
-  const plan = run.data.entitlement?.externalPlanId || run.data.entitlement?.planNumber || run.cfg.planNumber;
+  const plan = run.data.entitlement?.planNumber || run.cfg.planNumber;
   if (!plan) throw new Error('No plan number — run the entitlement step or set "Plan number" in the panel');
   const body = {
     provider: 'openai', planNumber: plan, customerId: 'automation@revinci.ai', externalAccountId: `ACC-${run.tag}`,

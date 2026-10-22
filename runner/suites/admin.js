@@ -17,6 +17,12 @@ const OPTIONS = [
 
 const PREFERRED_CURRENCIES = ['GBP', 'AUD', 'CAD', 'SGD', 'JPY', 'AED', 'CHF', 'NZD', 'ZAR', 'SEK', 'NOK', 'DKK', 'HKD', 'MXN', 'BRL'];
 
+// Name typed in the panel for this option (mandatory there) + the run tag so every run is unique.
+function nameFor(run, key, fallback) {
+  const n = (run.cfg.names && run.cfg.names[key] || '').trim() || fallback;
+  return `${n} ${run.tag}`;
+}
+
 async function go(run, path) {
   await run.page.goto(new URL(path, run.origin).toString(), { waitUntil: 'domcontentloaded' });
   await waitIdle(run.page, 1200);
@@ -112,24 +118,25 @@ const steps = {
   async priceProfile(run) { return profile(run, 'priceProfile', 'Price Profile'); },
   async costProfile(run) { return profile(run, 'costProfile', 'Cost Profile'); },
 
+  // Accounts screen → "Account" → form (/dashboard/crm/account/form) → Save → back on the list.
   async account(run) {
     const { page } = run;
     await go(run, '/dashboard/crm/account');
     await a.button(page, 'Account');
-    const name = `AT Customer ${run.tag}`;
+    await page.locator('#name').waitFor({ state: 'visible', timeout: a.to(20000) });
+    const name = nameFor(run, 'admin.account', 'AT Customer');
     await a.fill(page, 'Name', name, { id: 'name' });
     await a.fill(page, 'Account Number', `ACC-${run.tag}`, { id: 'accountNumber' });
-    await a.fill(page, 'Annual Revenue', '1200000');
-    await a.fill(page, 'Employees Count', '120');
-    await a.fill(page, 'Business Activities', 'Automation test customer', { id: 'businessActivities' });
+    await a.fill(page, 'Annual Revenue', '1200000', { id: 'annualRevenue' }).catch(() => {});
+    await a.fill(page, 'Employees Count', '120', { id: 'employeesCount' }).catch(() => {});
     await a.select(page, 'Type', 'Customer', { optional: true }) || await a.selectFirst(page, 'Type').catch(() => {});
     await a.selectFirst(page, 'Industry').catch(() => {});
-    await a.fill(page, 'Jurisdiction', 'INDIA', { id: 'jurisdiction' });
-    await a.fill(page, 'Account Website', 'automation.example', { id: 'accountWebsite' });
+    await a.fill(page, 'Account Website', 'automation.example', { id: 'accountWebsite' }).catch(() => {});
     await a.button(page, 'Save');
-    await a.toast(page);
+    const msg = await a.toast(page);
+    await page.waitForURL(u => !/\/form/.test(String(u)), { timeout: a.to(15000) }).catch(() => {});
     run.data.account = name;
-    return name;
+    return `${name} · ${msg.replace(/\s+/g, ' ')}`;
   },
 };
 
@@ -157,4 +164,4 @@ async function run(r, picks) {
   }
 }
 
-module.exports = { title, OPTIONS, run, go };
+module.exports = { title, OPTIONS, run, go, nameFor };

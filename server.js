@@ -57,6 +57,15 @@ app.get('/api/apikey/reveal', (req, res) => {
   res.json({ key: k.key });
 });
 
+app.post('/api/apikey', (req, res) => {
+  const { baseUrl, key } = req.body || {};
+  if (!baseUrl || !/^rvc_[A-Za-z0-9_\-]{8,}$/.test(String(key || '').trim())) return res.status(400).json({ error: 'Paste a valid Revinci API key (starts with rvc_).' });
+  try { new URL(baseUrl); } catch (_) { return res.status(400).json({ error: 'Enter the Revinci URL first.' }); }
+  const k = String(key).trim();
+  store.setApiKey(baseUrl, { key: k, name: 'saved from panel', prefix: k.slice(0, 20), source: 'pasted' });
+  res.json({ ok: true });
+});
+
 app.get('/api/events', (req, res) => {
   res.set({ 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive' });
   res.flushHeaders();
@@ -79,6 +88,8 @@ app.post('/api/run', (req, res) => {
     apiKey: (b.apiKey || '').trim() || null, rotateKey: !!b.rotateKey,
     apiBase: (b.apiBase || '').trim() || null, product: (b.product || '').trim() || null,
     account: (b.account || '').trim() || null, planNumber: (b.planNumber || '').trim() || null,
+    names: b.names && typeof b.names === 'object' ? b.names : {},
+    waitMode: b.waitMode === 'visible' ? 'visible' : 'standard', waitMaxMin: Math.min(60, Math.max(1, Number(b.waitMaxMin) || 10)),
   }, emit);
   res.json({ id: current.id, tag: current.tag });
   current.start().finally(() => { current = null; });

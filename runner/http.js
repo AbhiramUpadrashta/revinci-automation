@@ -15,7 +15,9 @@ async function sessionToken(run) {
   return run.page.evaluate(() => localStorage.getItem('accessToken')).catch(() => run.net?.token || null);
 }
 
-async function call(run, method, path, body, { auth = 'key', key, timeout = 30000 } = {}) {
+async function call(run, method, path, body, opts = {}) {
+  const { auth = 'key', key, timeout = 30000 } = opts;
+  let respHeaders = {};
   const url = path.startsWith('http') ? path : apiBase(run) + path;
   const token = auth === 'session' ? await sessionToken(run) : (key || run.apiKey);
   if (!token) throw new Error(auth === 'session' ? 'No session token (browser not logged in)' : 'No API key available — run the API key step or paste a key');
@@ -27,6 +29,7 @@ async function call(run, method, path, body, { auth = 'key', key, timeout = 3000
   try {
     const res = await fetch(url, { method, headers, body: body == null ? undefined : JSON.stringify(body), signal: ctl.signal });
     status = res.status;
+    respHeaders = Object.fromEntries(res.headers.entries());
     text = await res.text();
   } catch (e) {
     text = String(e.message || e);
@@ -34,6 +37,10 @@ async function call(run, method, path, body, { auth = 'key', key, timeout = 3000
   let parsed = text;
   try { parsed = text ? JSON.parse(text) : null; } catch (_) {}
   const rec = { method, path, status, ms: Date.now() - started, auth };
+  if ((status === 0 || status >= 400) && run.recordFailure && !opts.expectFailure) {
+    run.recordFailure({ source: 'api-test', method, url, status, ms: rec.ms, requestHeaders: headers, requestBody: body == null ? null : JSON.stringify(body, null, 2),
+      responseHeaders: respHeaders, responseBody: text, error: status === 0 ? text : null });
+  }
   (run.data.apiCalls = run.data.apiCalls || []).push(rec);
   run.emit && run.emit({ type: 'api', ...rec, sample: typeof text === 'string' ? text.slice(0, 600) : '' });
   return { status, body: parsed, text };
