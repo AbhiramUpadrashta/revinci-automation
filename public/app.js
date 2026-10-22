@@ -256,10 +256,31 @@ function listen() {
     if (ev.type === 'apifail') onFail(ev.failure);
     if (ev.type === 'log') { const div = document.createElement('div'); div.className = ev.level; div.textContent = `${new Date(ev.t || Date.now()).toLocaleTimeString()}  ${ev.msg}`; $('log').appendChild(div); $('log').scrollTop = 1e9; }
     if (ev.type === 'api') { const tr = document.createElement('tr'); tr.innerHTML = `<td class="code">${esc(ev.method)}</td><td class="code p">${esc(ev.path)}</td><td class="code s${String(ev.status)[0]}">${ev.status}</td><td>${ev.ms}</td><td>${esc(ev.auth)}</td>`; tr.title = ev.sample || ''; $('apis').appendChild(tr); }
-    if (ev.type === 'screen') { $('screen').src = 'data:image/jpeg;base64,' + ev.data; $('liveUrl').textContent = ev.url || ''; $('liveHint').hidden = true; }
+    if (ev.type === 'screen') { drawFrame(ev.data); if (ev.url) $('liveUrl').textContent = ev.url; $('liveHint').hidden = true; }
     if (ev.type === 'apikey') { if (ev.key) LS.set('rv.key.' + host(), JSON.stringify({ key: ev.key, name: ev.name, source: ev.source, savedAt: Date.now() })); refreshState(); }
     if (ev.type === 'run' && ev.status === 'running') { if (!steps.size) resetView(ev.tag); setRunning(true); }
     if (ev.type === 'run' && ev.status === 'done') { setRunning(false); $('reportBox').hidden = false; $('reportLink').href = ev.report; refreshState(); }
   };
 }
 init();
+
+/* ---------- live view: decode off-thread, draw on a canvas, always show the newest frame ---------- */
+let frameBusy = false, frameNext = null;
+async function drawFrame(b64) {
+  frameNext = b64;
+  if (frameBusy) return;          // drop stale frames instead of queueing them
+  frameBusy = true;
+  try {
+    while (frameNext) {
+      const data = frameNext; frameNext = null;
+      const blob = await (await fetch('data:image/jpeg;base64,' + data)).blob();
+      const bmp = await createImageBitmap(blob);
+      const c = $('screen');
+      if (c.width !== bmp.width || c.height !== bmp.height) { c.width = bmp.width; c.height = bmp.height; }
+      await new Promise(r => requestAnimationFrame(r));
+      c.getContext('2d').drawImage(bmp, 0, 0);
+      c.classList.add('on');
+      bmp.close && bmp.close();
+    }
+  } catch (_) {} finally { frameBusy = false; }
+}

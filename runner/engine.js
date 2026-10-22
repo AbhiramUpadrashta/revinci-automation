@@ -134,8 +134,26 @@ class Run {
     } catch (_) {} finally { this.snapping = false; }
   }
 
-  startScreenFeed() {
-    this.feed = setInterval(() => this.snap(), 1500);
+  // Smooth live view: Chrome's screencast pushes a frame whenever the page repaints (no screenshots that
+  // pause the automation). Frames are throttled to ~8 fps; the 1.5 s screenshot loop is only a fallback.
+  async startScreenFeed() {
+    try {
+      this.cdp = await this.page.context().newCDPSession(this.page);
+      let lastSent = 0, pending = null, timer = null;
+      const send = () => { timer = null; if (!pending) return; lastSent = Date.now(); this.emit({ type: 'screen', data: pending, url: this.page.url() }); pending = null; };
+      this.cdp.on('Page.screencastFrame', f => {
+        this.cdp.send('Page.screencastFrameAck', { sessionId: f.sessionId }).catch(() => {});
+        pending = f.data;
+        const wait = 125 - (Date.now() - lastSent);
+        if (wait <= 0) send(); else if (!timer) timer = setTimeout(send, wait);
+      });
+      await this.cdp.send('Page.startScreencast', { format: 'jpeg', quality: 55, maxWidth: 1280, maxHeight: 800, everyNthFrame: 1 });
+      this.screencast = true;
+      this.feed = setInterval(() => { if (Date.now() - lastSent > 3000) this.snap(); }, 3000); // idle page keeps a fresh frame
+    } catch (_) {
+      this.screencast = false;
+      this.feed = setInterval(() => this.snap(), 1500);
+    }
   }
 
   watchNetwork(page) {
@@ -168,6 +186,7 @@ class Run {
 
   async finish() {
     if (this.feed) clearInterval(this.feed);
+    if (this.cdp) await this.cdp.send('Page.stopScreencast').catch(() => {});
     if (this.context) await this.context.close().catch(() => {});
     if (this.browser) await this.browser.close().catch(() => {});
     const passed = this.steps.filter(s => s.status === 'passed').length;

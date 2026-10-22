@@ -84,6 +84,29 @@ details summary{cursor:pointer;color:var(--ink2);font-weight:600;font-size:13px;
 .suite.on{border-color:#b9e095;background:#f6fcef}
 .suite h3{font:700 14px var(--f-d);margin:0 0 6px;display:flex;justify-content:space-between;align-items:center;gap:8px}
 .suite h3 label{font:500 12px var(--f-b);color:var(--mute);display:flex;gap:5px;align-items:center}
+.seq{margin-top:16px;border:1px solid var(--line);background:linear-gradient(180deg,#fbfdf8,#f4f9ee);border-radius:14px;padding:14px 16px}
+.seq-h{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}
+.seq h3{font:700 14px var(--f-d);margin:0 0 2px}
+.seq .ghost{border:1px solid var(--line);background:#fff;border-radius:99px;padding:6px 12px;font-weight:600;font-size:12.5px;color:var(--ink2);cursor:pointer}
+.seq .ghost:hover{border-color:var(--lime-d);color:var(--lime-ink)}
+.seq-list{list-style:none;margin:12px 0 0;padding:0;display:flex;flex-direction:column;gap:8px;counter-reset:seq}
+.seq-item{display:grid;grid-template-columns:auto auto minmax(0,1fr) auto;align-items:center;gap:10px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:8px 10px;box-shadow:0 1px 0 rgba(20,40,10,.04);transition:transform .15s ease,box-shadow .15s ease,border-color .15s;touch-action:none}
+.seq-item:hover{border-color:#cfe9b8;box-shadow:0 4px 14px rgba(40,80,20,.08)}
+.seq-item.dragging{opacity:.55;transform:scale(.98)}
+.seq-item.over{border-color:var(--lime-d);box-shadow:0 0 0 3px var(--lime-bg)}
+.seq-item .grip{cursor:grab;color:#9aa894;font-size:16px;line-height:1;padding:4px 2px;user-select:none}
+.seq-item .grip:active{cursor:grabbing}
+.seq-item .num{width:26px;height:26px;border-radius:8px;background:var(--ink);color:var(--lime);display:grid;place-items:center;font:700 12px var(--f-b)}
+.seq-item .txt{min-width:0}
+.seq-item .txt b{display:block;font-size:13.5px;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.seq-item .txt small{font-size:11.5px;color:var(--mute)}
+.seq-item .mv{display:flex;gap:4px}
+.seq-item .mv button{width:30px;height:30px;border-radius:8px;border:1px solid var(--line);background:#fff;cursor:pointer;font-size:14px;color:var(--ink2)}
+.seq-item .mv button:hover:not(:disabled){background:var(--lime-bg);border-color:#cfe9b8}
+.seq-item .mv button:disabled{opacity:.35;cursor:default}
+.seq-item.moved{animation:seqflash .5s ease}
+@keyframes seqflash{from{background:var(--lime-bg)}to{background:#fff}}
+@media(max-width:600px){.seq-item .txt b{white-space:normal}.seq-item{gap:8px;padding:8px}}
 .names{margin-top:16px;border:1px solid #f0d9a8;background:#fffaf0;border-radius:14px;padding:14px 16px}
 .names h3{font:700 14px var(--f-d);margin:0 0 2px}
 .names .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px 14px;margin-top:8px}
@@ -132,7 +155,7 @@ table.api td.p{white-space:normal;word-break:break-all}
 .fail pre{margin:0;background:#141914;color:#d4e3cf;border-radius:9px;padding:10px;font:11.5px/1.5 var(--f-m);max-height:260px;overflow:auto;white-space:pre-wrap;word-break:break-word}
 .empty{padding:22px;text-align:center;color:var(--mute);border:1px dashed var(--line);border-radius:12px}
 .live{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--soft)}
-.live img{display:block;width:100%;height:auto}.live img:not([src]){display:none}
+.live canvas{display:none;width:100%;height:auto;image-rendering:auto}.live canvas.on{display:block}
 .urlbar{font:12px var(--f-m);padding:8px 12px;background:#e9efe4;color:var(--ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .live .empty{border:0}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
@@ -208,6 +231,13 @@ table.api td.p{white-space:normal;word-break:break-all}
       <button type="button" data-preset="none">Clear</button>
     </div>
     <div id="suites" class="suites"></div>
+    <div class="seq" id="seqBox" hidden>
+      <div class="seq-h">
+        <div><h3>Run order</h3><div class="hint">Drag steps, or use the arrows, to choose what runs first.</div></div>
+        <button type="button" class="ghost" id="seqReset" title="Back to the recommended order">↺ Recommended order</button>
+      </div>
+      <ol id="seq" class="seq-list" aria-label="Run order"></ol>
+    </div>
     <div class="names" id="namesBox" hidden>
       <h3>Names for this run</h3>
       <div class="hint">Required for each selected item. The run tag is added so every run creates fresh records.</div>
@@ -237,7 +267,7 @@ table.api td.p{white-space:normal;word-break:break-all}
       <button type="button" data-tab="apis">API calls</button>
       <button type="button" data-tab="fails">Failed APIs<span class="cnt" id="failCnt"></span></button>
     </div>
-    <div data-pane="live" hidden><div class="live"><div class="urlbar" id="liveUrl">Waiting for a run…</div><img id="screen" alt="Automation browser live view"><div class="empty" id="liveHint">The automation browser appears here while a run is in progress.</div></div></div>
+    <div data-pane="live" hidden><div class="live"><div class="urlbar" id="liveUrl">Waiting for a run…</div><canvas id="screen" role="img" aria-label="Automation browser live view"></canvas><div class="empty" id="liveHint">The automation browser appears here while a run is in progress.</div></div></div>
     <div data-pane="steps"><ul class="steps" id="steps"><li><span></span><span class="hint">Pick tests above and click Run.</span></li></ul></div>
     <div data-pane="log" hidden><div class="log" id="log"></div></div>
     <div data-pane="apis" hidden><div class="tbl"><table class="api"><thead><tr><th>Method</th><th>Path</th><th>Status</th><th>ms</th><th>Auth</th></tr></thead><tbody id="apis"></tbody></table></div></div>
