@@ -159,7 +159,12 @@ async function order(run) {
   await selectByLabel(page, 'Billing Frequency', 'Monthly');
   await a.segment(page, '30 Days').catch(() => {});
   await selectByLabel(page, 'Currency', 'USD');
-  await selectByLabel(page, 'Rate Type', 'Budgeted'); // only shown for non-base currencies
+  // Fields after Currency (e.g. Rate Type) only show for some currencies — fill them if present, otherwise just Continue.
+  await page.waitForTimeout(600);
+  for (const [label, want] of [['Rate Type', 'Budgeted']]) {
+    try { const v = await selectByLabel(page, label, want); if (!v) run.log(`  ${label} not shown — continuing`); }
+    catch (e) { run.log(`  ${label} skipped (${e.message.slice(0, 80)}) — continuing`); await page.keyboard.press('Escape').catch(() => {}); }
+  }
   await a.button(page, 'Continue');
   await page.waitForURL(u => /\/dashboard\/orders\/[0-9a-f-]{36}/.test(String(u)), { timeout: a.to(30000) });
   run.data.order = { name, number, account: picked, url: page.url() };

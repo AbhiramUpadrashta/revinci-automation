@@ -602,7 +602,10 @@
       (await select('Billing Frequency', 'Monthly', { optional: true })) || (await selectFirst('Billing Frequency'));
       const seg = $v('.ant-segmented-item').find(s => /30 Days/.test(s.innerText)); if (seg) clickEl(seg);
       (await select('Currency', 'USD', { optional: true })) || (await selectFirst('Currency'));
-      if (formItem('Rate Type')) (await select('Rate Type', 'Budgeted', { optional: true })) || (await selectFirst('Rate Type'));
+      await sleep(600);
+      // Rate Type only shows for some currencies — fill it if present, otherwise just Continue
+      if (formItem('Rate Type')) { try { (await select('Rate Type', 'Budgeted', { optional: true })) || (await selectFirst('Rate Type')); } catch (e) { UI.log('  Rate Type skipped — continuing'); } }
+      else UI.log('  Rate Type not shown — continuing');
       await button('Continue');
       await waitFor(() => /\/dashboard\/orders\/[0-9a-f-]{36}/.test(W().location.pathname), 30000, 'order bag');
       R.data.order = { name, number, account: picked };
