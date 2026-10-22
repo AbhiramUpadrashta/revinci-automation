@@ -25,7 +25,7 @@ if (APP_PASSWORD) {
   });
 }
 app.use(express.json({ limit: '1mb' }));
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'public'), { setHeaders: res => res.setHeader('Cache-Control', 'no-cache') }));
 app.use('/reports', express.static(path.join(__dirname, 'reports')));
 
 let current = null;
@@ -89,6 +89,7 @@ app.post('/api/run', (req, res) => {
     apiBase: (b.apiBase || '').trim() || null, product: (b.product || '').trim() || null,
     account: (b.account || '').trim() || null, planNumber: (b.planNumber || '').trim() || null,
     names: b.names && typeof b.names === 'object' ? b.names : {},
+    order: Array.isArray(b.order) ? b.order.filter(k => typeof k === 'string' && /^[a-z]+\.[A-Za-z]+$/.test(k)).slice(0, 60) : [],
     waitMode: b.waitMode === 'visible' ? 'visible' : 'standard', waitMaxMin: Math.min(60, Math.max(1, Number(b.waitMaxMin) || 10)),
   }, emit);
   res.json({ id: current.id, tag: current.tag });

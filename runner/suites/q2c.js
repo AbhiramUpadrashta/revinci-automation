@@ -112,7 +112,7 @@ async function typeAccount(run, name) {
 async function pickToday(page, input) {
   await input.click();
   const today = page.locator('.ant-picker-dropdown:not(.ant-picker-dropdown-hidden) .ant-picker-now-btn, .ant-picker-dropdown:not(.ant-picker-dropdown-hidden) .ant-picker-today-btn').first();
-  if (await today.isVisible({ timeout: 3000 }).catch(() => false)) await today.click();
+  if (await seen(today, 3000)) await today.click();
   else { await input.fill(a.fmt(new Date())); await input.press('Enter'); }
   await page.waitForTimeout(400);
   return input.inputValue().catch(() => '');
@@ -124,30 +124,43 @@ async function selectByLabel(page, label, want) {
   return await a.select(page, label, want, { optional: true, search: false }) || await a.selectFirst(page, label);
 }
 
+// Playwright's isVisible() never waits — this does.
+const seen = (loc, ms) => loc.waitFor({ state: 'visible', timeout: ms }).then(() => true).catch(() => false);
+
 // LLM popup after "Add to bag": open the LLM pick list, select the first model, click Configure.
 async function costProfilePopup(run) {
   const { page } = run;
-  const modal = page.locator('.ant-modal-wrap:visible').filter({ hasText: /Configure Cost Profiles|LLM/i }).first();
-  if (!(await modal.isVisible({ timeout: 10000 }).catch(() => false))) return 'no LLM popup';
-  await page.waitForTimeout(500);
+  const modal = page.locator('.ant-modal-content').filter({ hasText: /Configure Cost Profiles/i }).first();
+  if (!(await seen(modal, a.to(15000)))) return 'no LLM popup';
+  await page.waitForTimeout(600);
   let llm = modal.locator('.ant-select').filter({ hasText: /Select LLM/i }).first();
   if (!(await llm.count())) llm = modal.locator('.ant-select').first();
-  let model = '';
-  for (let attempt = 1; attempt <= 3 && !model; attempt++) {
-    await llm.scrollIntoViewIfNeeded().catch(() => {});
-    await llm.locator('.ant-select-selector').click({ force: true });
+  const openFirst = async sel => {
+    await sel.scrollIntoViewIfNeeded().catch(() => {});
+    await sel.locator('.ant-select-selector').click();
     const first = page.locator('.ant-select-dropdown:not(.ant-select-dropdown-hidden) .ant-select-item-option').first();
-    if (!(await first.isVisible({ timeout: 6000 }).catch(() => false))) { await page.keyboard.press('Escape'); continue; }
+    if (!(await seen(first, 8000))) { await page.keyboard.press('Escape'); return ''; }
     const t = (await first.innerText()).trim();
     await first.click();
     await page.waitForTimeout(400);
-    const shown = (await llm.locator('.ant-select-selection-item').first().innerText().catch(() => '')).trim();
-    if (shown) model = shown || t;
-  }
+    return (await sel.locator('.ant-select-selection-item').first().innerText().catch(() => '')).trim() || t;
+  };
+  let model = '';
+  for (let attempt = 1; attempt <= 3 && !model; attempt++) model = await openFirst(llm);
   if (!model) throw new Error('LLM pick list: could not select the first model');
-  const cfg = modal.locator('button').filter({ hasText: /^\s*Configure/i }).first();
-  await cfg.click();
-  await modal.waitFor({ state: 'hidden', timeout: a.to(15000) }).catch(() => {});
+  run.log(`  LLM model → ${model}`);
+  const configure = () => modal.locator('button').filter({ hasText: /^\s*Configure/i }).first().click();
+  await configure();
+  if (!(await modal.waitFor({ state: 'hidden', timeout: 6000 }).then(() => true).catch(() => false))) {
+    // popup still open (other pick lists required) — fill any empty ones with their first option and retry
+    const sels = modal.locator('.ant-select');
+    for (let i = 0, n = await sels.count(); i < n; i++) {
+      const has = (await sels.nth(i).locator('.ant-select-selection-item').count()) > 0;
+      if (!has) await openFirst(sels.nth(i));
+    }
+    await configure();
+    await modal.waitFor({ state: 'hidden', timeout: a.to(15000) });
+  }
   await a.toast(page, 8000).catch(() => '');
   return `LLM → ${model} → Configure`;
 }
@@ -209,8 +222,22 @@ async function entitlement(run) {
     }
   }
   const entName = (await page.locator(`.ag-pinned-left-cols-container .ag-row[row-index="${idx}"]`).innerText().catch(() => '')).trim();
-  await page.locator(`.ag-pinned-right-cols-container .ag-row[row-index="${idx}"] button`).first().click();
-  await page.waitForURL(u => /revenueEntitlement\/[0-9a-f-]{36}/.test(String(u)), { timeout: a.to(20000) });
+  // The eye icon only appears on hover: hover the row, then click the eye to open the detail view.
+  const detail = u => /revenueEntitlement\/[0-9a-f-]{36}/.test(String(u));
+  const rowSel = `.ag-row[row-index="${idx}"]`;
+  const eye = page.locator(`.ag-pinned-right-cols-container ${rowSel} button:has(.anticon-eye), .ag-pinned-right-cols-container ${rowSel} button`).first();
+  for (let attempt = 1; attempt <= 3 && !detail(page.url()); attempt++) {
+    await page.locator(`.ag-pinned-left-cols-container ${rowSel}`).first().hover().catch(() => {});
+    await page.locator(`.ag-center-cols-container ${rowSel} .ag-cell`).first().hover().catch(() => {});
+    await page.locator(`.ag-pinned-right-cols-container ${rowSel}`).first().hover().catch(() => {});
+    await page.waitForTimeout(400);
+    await eye.hover().catch(() => {});
+    if (await eye.isVisible().catch(() => false)) await eye.click().catch(() => eye.click({ force: true }).catch(() => {}));
+    else await eye.click({ force: true }).catch(() => eye.evaluate(b => b.click()).catch(() => {}));
+    await page.waitForURL(detail, { timeout: 8000 }).catch(() => {});
+  }
+  if (!detail(page.url())) throw new Error('Could not open the entitlement detail view (eye icon on hover)');
+  run.log('  opened entitlement detail via the eye icon');
   const id = page.url().match(/revenueEntitlement\/([0-9a-f-]{36})/)[1];
   run.data.entitlement = { id, name: entName };
   await a.button(page, 'Activate', { timeout: 30000 });

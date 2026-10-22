@@ -76,6 +76,7 @@ function syncCards() {
   $('planHint').textContent = n ? `${n} test option${n > 1 ? 's' : ''} selected` : 'Nothing selected';
   LS.set('rv.sel', JSON.stringify(sel));
   renderNames(sel);
+  renderSeq(sel);
 }
 document.querySelectorAll('[data-preset]').forEach(b => b.onclick = () => applyPreset(PRESETS[b.dataset.preset]));
 
@@ -196,7 +197,7 @@ $('run').onclick = async () => {
   const waitMode = document.querySelector('input[name=wait]:checked').value;
   const body = {
     baseUrl: $('baseUrl').value.trim(), email: $('email').value.trim(), password: $('password').value,
-    suites: selection(), names, waitMode, waitMaxMin: +$('waitMax').value || 10,
+    suites: selection(), names, order: SEQ.slice(), waitMode, waitMaxMin: +$('waitMax').value || 10,
     headless: $('headless').checked, video: $('video').checked, slowMo: +$('slowMo').value,
     apiKey: browserKey()?.key || '', rotateKey: $('rotateKey').checked, apiBase: $('apiBase').value, planNumber: $('planNumber').value,
   };
@@ -284,3 +285,54 @@ async function drawFrame(b64) {
     }
   } catch (_) {} finally { frameBusy = false; }
 }
+
+/* ---------- run order: drag & drop or arrows, remembered per browser ---------- */
+let SEQ = (() => { try { return JSON.parse(LS.get('rv.seq') || '[]'); } catch (_) { return []; } })();
+const SUITE_SHORT = { admin: 'Admin setup', apikey: 'API key', products: 'Product setup', q2c: 'Quote · Order · Entitlement', api: 'API testing' };
+function defaultKeys(sel) { const out = []; for (const k of ORDER) for (const id of sel[k] || []) out.push(`${k}.${id}`); return out; }
+function renderSeq(sel = selection()) {
+  const all = defaultKeys(sel);
+  SEQ = SEQ.filter(k => all.includes(k));
+  for (const k of all) if (!SEQ.includes(k)) SEQ.push(k);
+  LS.set('rv.seq', JSON.stringify(SEQ));
+  $('seqBox').hidden = SEQ.length < 1;
+  $('seqHint').textContent = SEQ.length > 1 ? 'Drag steps, or use the arrows, to choose what runs first.' : 'Tick more steps above to set which one runs first.';
+  $('seq').innerHTML = SEQ.map((k, i) => {
+    const [suite, id] = k.split('.');
+    const o = META[suite]?.options.find(x => x.id === id);
+    return `<li class="seq-item" draggable="true" data-k="${esc(k)}">
+      <span class="grip" aria-hidden="true">⠿</span><span class="num">${i + 1}</span>
+      <span class="txt"><b>${esc(o ? o.label : id)}</b><small>${esc(SUITE_SHORT[suite] || suite)}</small></span>
+      <span class="mv"><button type="button" data-mv="-1" aria-label="Move up" ${i === 0 ? 'disabled' : ''}>↑</button><button type="button" data-mv="1" aria-label="Move down" ${i === SEQ.length - 1 ? 'disabled' : ''}>↓</button></span>
+    </li>`;
+  }).join('');
+  const custom = SEQ.join() !== all.join();
+  $('seqReset').hidden = !custom;
+}
+function moveSeq(k, to) {
+  const from = SEQ.indexOf(k); if (from < 0 || to < 0 || to >= SEQ.length || to === from) return;
+  SEQ.splice(from, 1); SEQ.splice(to, 0, k);
+  renderSeq();
+  const li = $('seq').querySelector(`[data-k="${CSS.escape(k)}"]`); if (li) { li.classList.add('moved'); li.querySelector(`[data-mv]`)?.focus({ preventScroll: true }); }
+}
+$('seq').addEventListener('click', e => {
+  const b = e.target.closest('[data-mv]'); if (!b) return;
+  const k = b.closest('.seq-item').dataset.k;
+  moveSeq(k, SEQ.indexOf(k) + Number(b.dataset.mv));
+  const again = $('seq').querySelector(`[data-k="${CSS.escape(k)}"] [data-mv="${b.dataset.mv}"]`); if (again && !again.disabled) again.focus();
+});
+$('seqReset').onclick = () => { SEQ = []; renderSeq(); };
+// mouse drag (HTML5)
+let dragK = null;
+$('seq').addEventListener('dragstart', e => { const li = e.target.closest('.seq-item'); if (!li) return; dragK = li.dataset.k; li.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', dragK); });
+$('seq').addEventListener('dragend', () => { dragK = null; $('seq').querySelectorAll('.dragging,.over').forEach(x => x.classList.remove('dragging', 'over')); });
+$('seq').addEventListener('dragover', e => { const li = e.target.closest('.seq-item'); if (!li || !dragK) return; e.preventDefault(); $('seq').querySelectorAll('.over').forEach(x => x.classList.remove('over')); if (li.dataset.k !== dragK) li.classList.add('over'); });
+$('seq').addEventListener('drop', e => { const li = e.target.closest('.seq-item'); if (!li || !dragK) return; e.preventDefault(); moveSeq(dragK, SEQ.indexOf(li.dataset.k)); });
+// touch / pen drag on the grip
+$('seq').addEventListener('pointerdown', e => {
+  const grip = e.target.closest('.grip'); if (!grip || e.pointerType === 'mouse') return;
+  const li = grip.closest('.seq-item'); const k = li.dataset.k; li.classList.add('dragging');
+  const move = ev => { const t = document.elementFromPoint(ev.clientX, ev.clientY)?.closest('.seq-item'); $('seq').querySelectorAll('.over').forEach(x => x.classList.remove('over')); if (t && t.dataset.k !== k) t.classList.add('over'); };
+  const up = ev => { document.removeEventListener('pointermove', move); document.removeEventListener('pointerup', up); const t = document.elementFromPoint(ev.clientX, ev.clientY)?.closest('.seq-item'); li.classList.remove('dragging'); if (t && t.dataset.k !== k) moveSeq(k, SEQ.indexOf(t.dataset.k)); else renderSeq(); };
+  document.addEventListener('pointermove', move); document.addEventListener('pointerup', up); e.preventDefault();
+});

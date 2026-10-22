@@ -23,11 +23,12 @@ async function login(run) {
   const end1 = Date.now() + 60000;
   let state = null;
   let kcClicked = false;
-  const kcButton = page.locator('button:visible, a:visible, [role=button]:visible').filter({ hasText: /sign\s*in\s*with\s*keycloak/i }).first();
+  const kcRe = /sign\s*in\s*with\s*keycloak/i;
+  const kcButton = page.getByRole('button', { name: kcRe }).or(page.getByRole('link', { name: kcRe })).or(page.getByText(kcRe)).first();
   while (Date.now() < end1 && !state) {
     // Some workspaces first show a "Sign in with Keycloak" button — click it when present, otherwise skip.
     if (!kcClicked && await kcButton.isVisible().catch(() => false)) {
-      await kcButton.click().catch(() => {});
+      await kcButton.click({ timeout: 5000 }).catch(() => kcButton.click({ force: true }).catch(() => {}));
       kcClicked = true;
       run.log('  clicked "Sign in with Keycloak"');
       await page.waitForTimeout(800);

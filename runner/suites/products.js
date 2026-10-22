@@ -4,6 +4,7 @@
 const a = require('../ant');
 const { waitIdle } = require('../ui');
 const { go } = require('./admin');
+const agents = require('./agents');
 
 const title = 'Product setup';
 const OPTIONS = [
@@ -16,8 +17,8 @@ const OPTIONS = [
   { id: 'bundle', label: 'Bundle', type: 'BUNDLE', price: 'Subscription', amount: 49 },
   { id: 'productWithFeatures', label: 'Product with Features', type: 'FEATURE_X', query: '&hasFeatures=true', price: 'Subscription', amount: 0 },
   { id: 'productWithOfferings', label: 'Product with Feature Offerings', type: 'FEATURE_X', price: 'Subscription', amount: 0 },
-  { id: 'agentSimple', label: 'Agent — simple', special: 'agent', mode: 'simple', price: 'Subscription', amount: 149 },
-  { id: 'agentWorkflow', label: 'Agent — workflow', special: 'agent', mode: 'workflow', price: 'Subscription', amount: 0 },
+  { id: 'agentSimple', label: 'Agent — simple (outcome + 4 PLIs)', special: 'agent', mode: 'simple', price: 'Subscription', amount: 149 },
+  { id: 'agentWorkflow', label: 'Agent — workflow (sub-agent + outcome + offering)', special: 'agent', mode: 'workflow', price: 'Subscription', amount: 0 },
 ];
 
 function code(run, id) { return `AT-${id.replace(/[a-z]/g, '').toUpperCase() || id.slice(0, 3).toUpperCase()}${id.length}-${run.tag}`; }
@@ -189,7 +190,7 @@ async function agent(run, o) {
 async function run(r, picks) {
   for (const o of OPTIONS) {
     if (!picks.includes(o.id)) continue;
-    await r.step(`Product · ${o.label}`, () => o.special === 'optionGroup' ? optionGroup(r) : o.special === 'agent' ? agent(r, o) : createProduct(r, o));
+    await r.step(`Product · ${o.label}`, () => o.special === 'optionGroup' ? optionGroup(r) : o.special === 'agent' ? (o.mode === 'simple' ? agents.simple(r) : agents.workflow(r)) : createProduct(r, o));
   }
 }
 
