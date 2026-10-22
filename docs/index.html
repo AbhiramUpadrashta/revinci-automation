@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20viewBox%3D%220%200%20804%20603%22%20fill%3D%22none%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%0A%3Cpath%20d%3D%22M796.867%200H370.227C351.277%200%20333.297%208.38001%20321.117%2022.89L259.677%2096.04C256.097%20100.3%20259.127%20106.8%20264.687%20106.8H691.047C709.997%20106.8%20727.977%2098.42%20740.157%2083.91L801.787%2010.54C805.297%206.37001%20802.327%200%20796.877%200H796.867Z%22%20fill%3D%22%231D231D%22%2F%3E%0A%3Cpath%20d%3D%22M678.397%20135.74H251.757C232.807%20135.74%20214.827%20144.12%20202.647%20158.63L147.007%20224.87C144.127%20227.91%20140.747%20231.08%20137.307%20233.44C129.297%20238.930%20123.897%20241.88%20113.197%20242.54H6.42747C0.977473%20242.54%20-1.99256%20248.91%201.51744%20253.080L273.607%20576.99C287.267%20593.25%20307.417%20602.64%20328.657%20602.64H420.857C426.307%20602.64%20429.277%20596.27%20425.767%20592.1L150.797%20264.76C148.307%20260.76%20146.517%20255.5%20149.377%20250.5C152.637%20244.8%20159.627%20243.02%20165.007%20242.53H572.568C591.518%20242.53%20609.497%20234.15%20621.677%20219.64L683.307%20146.27C686.818%20142.1%20683.847%20135.73%20678.397%20135.73V135.74Z%22%20fill%3D%22%231D231D%22%2F%3E%0A%3C%2Fsvg%3E">
+<title>Revinci Test Automation</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* Layout: one working column — install steps first, then what it tests; a dark Revinci band on top. */
+:root {
+  --ink: #1d231d; --paper: #f4f7f1; --card: #ffffff; --line: #dfe6da; --mute: #5f6b5c;
+  --lime: #a6e46b; --lime-soft: #eaf8dc; --lime-ink: #2f5a12; --warn-bg: #fff4dd; --warn: #8a5a0b;
+  --band: #1d231d; --band-fg: #f2f7ee; --band-mute: #b6c3b2;
+  --f-display: "Manrope", "Segoe UI", system-ui, sans-serif;
+  --f-body: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --ink: #e8efe3; --paper: #121612; --card: #1a201a; --line: #2b342a; --mute: #9aa896;
+  --lime-soft: #20301a; --lime-ink: #bdf08f; --warn-bg: #2e2414; --warn: #f0c070;
+  --band: #0b0e0b; --band-fg: #f2f7ee; --band-mute: #9aa896; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --ink: #e8efe3; --paper: #121612; --card: #1a201a; --line: #2b342a; --mute: #9aa896;
+  --lime-soft: #20301a; --lime-ink: #bdf08f; --warn-bg: #2e2414; --warn: #f0c070;
+  --band: #0b0e0b; --band-fg: #f2f7ee; --band-mute: #9aa896; color-scheme: dark }
+* { box-sizing: border-box }
+body { background: var(--paper); color: var(--ink); font: 15px/1.55 var(--f-body) }
+.wrap { max-width: 920px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)) }
+header { background: var(--band); color: var(--band-fg) }
+header .wrap { padding-block: 34px 30px; display: grid; gap: 14px }
+.brand { display: flex; align-items: center; gap: 12px }
+.mark { width: 40px; height: 40px; border-radius: 11px; background: var(--lime); display: grid; place-items: center; flex: none }
+.mark svg { width: 25px }
+.brand span { font: 700 15px var(--f-display); letter-spacing: .3px }
+.brand small { color: var(--band-mute); font: 500 13px var(--f-body); margin-left: 4px }
+h1 { font: 800 clamp(28px, 5vw, 40px)/1.12 var(--f-display); margin: 6px 0 0; text-wrap: balance; letter-spacing: -.5px }
+.lede { color: var(--band-mute); max-width: 62ch; margin: 0 }
+main .wrap { padding-block: 28px 56px; display: grid; gap: 22px }
+section.card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 22px }
+h2 { font: 700 19px/1.25 var(--f-display); margin: 0 0 4px; text-wrap: balance }
+.sub { color: var(--mute); margin: 0 0 16px; max-width: 65ch }
+ol.steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; counter-reset: s }
+ol.steps > li { display: grid; grid-template-columns: 30px 1fr; gap: 12px; counter-increment: s; align-items: start }
+ol.steps > li::before { content: counter(s); width: 28px; height: 28px; border-radius: 50%; background: var(--lime-soft); color: var(--lime-ink); font: 700 14px var(--f-display); display: grid; place-items: center }
+ol.steps > li > div { min-width: 0 }
+.bm { display: inline-flex; align-items: center; gap: 10px; background: var(--lime); color: #1d231d; font: 700 15px var(--f-display); padding: 11px 18px; border-radius: 10px; text-decoration: none; cursor: grab; border: 2px dashed #5f9a2c; margin-top: 8px }
+.bm svg { width: 18px }
+.bm:focus-visible, button:focus-visible { outline: 3px solid var(--lime-ink); outline-offset: 2px }
+.note { font-size: 13px; color: var(--mute); margin-top: 6px }
+kbd { font: 500 12px var(--f-mono); background: var(--paper); border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 5px; padding: 1px 6px }
+code { font: 13px var(--f-mono); background: var(--paper); border: 1px solid var(--line); border-radius: 5px; padding: 1px 5px; word-break: break-all }
+.row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 8px }
+button { font: 600 14px var(--f-body); border-radius: 9px; padding: 9px 14px; cursor: pointer; border: 1px solid var(--line); background: var(--card); color: var(--ink) }
+button.primary { background: var(--ink); color: var(--paper); border-color: var(--ink) }
+.toast { font-size: 13px; color: var(--lime-ink) }
+textarea#code { width: 100%; height: 90px; font: 11px var(--f-mono); border: 1px solid var(--line); border-radius: 9px; padding: 8px; background: var(--paper); color: var(--ink); resize: vertical; margin-top: 8px }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px }
+.suite { border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; background: var(--paper) }
+.suite h3 { font: 700 15px var(--f-display); margin: 0 0 6px }
+.suite ul { margin: 0; padding-left: 18px; color: var(--mute); font-size: 13.5px }
+.callout { background: var(--warn-bg); color: var(--warn); border-radius: 12px; padding: 14px 16px; font-size: 14px }
+.callout b { color: var(--warn) }
+.facts { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none }
+.facts li { padding-left: 16px; position: relative; max-width: 70ch }
+.facts li::before { content: ""; position: absolute; left: 0; top: .65em; width: 6px; height: 6px; border-radius: 50%; background: var(--lime) }
+.ws { font: 500 13px var(--f-mono); color: var(--band-fg); background: #2c352b; border-radius: 7px; padding: 6px 10px; justify-self: start; max-width: 100%; overflow-wrap: anywhere }
+a { color: var(--lime-ink) }
+pre.cmd { position: relative; margin: 8px 0 0; padding-right: 84px !important; background: #121612; color: #d9f5bf; border-radius: 10px; padding: 14px 16px; font: 12.5px/1.6 var(--f-mono); overflow-x: auto; white-space: pre }
+pre.cmd .c { color: #8fa38a }
+.copy { position: absolute; top: 8px; right: 8px; font: 600 12px var(--f-body); padding: 5px 10px; background: #2c352b; color: #f2f7ee; border: 0 }
+.tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 4px }
+.pill { font: 600 12px var(--f-body); background: var(--lime-soft); color: var(--lime-ink); border-radius: 99px; padding: 3px 10px }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important } }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <div class="brand"><div class="mark" aria-hidden="true"><svg viewBox="0 0 804 603" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M796.867 0H370.227C351.277 0 333.297 8.38001 321.117 22.89L259.677 96.04C256.097 100.3 259.127 106.8 264.687 106.8H691.047C709.997 106.8 727.977 98.42 740.157 83.91L801.787 10.54C805.297 6.37001 802.327 0 796.877 0H796.867Z" fill="#1D231D"/>
+<path d="M678.397 135.74H251.757C232.807 135.74 214.827 144.12 202.647 158.63L147.007 224.87C144.127 227.91 140.747 231.08 137.307 233.44C129.297 238.930 123.897 241.88 113.197 242.54H6.42747C0.977473 242.54 -1.99256 248.91 1.51744 253.080L273.607 576.99C287.267 593.25 307.417 602.64 328.657 602.64H420.857C426.307 602.64 429.277 596.27 425.767 592.1L150.797 264.76C148.307 260.76 146.517 255.5 149.377 250.5C152.637 244.8 159.627 243.02 165.007 242.53H572.568C591.518 242.53 609.497 234.15 621.677 219.64L683.307 146.27C686.818 142.1 683.847 135.73 678.397 135.73V135.74Z" fill="#1D231D"/>
+</svg></div><span>Revinci</span><small>Test Automation</small></div>
+    <h1>End-to-end tests for your Revinci workspace</h1>
+    <p class="lede">Admin setup, every product type, quote → order → entitlement, and the documented APIs, driven screen by screen. Run it right in your browser, or as a full app from Terminal.</p>
+    <div class="ws">tessla-workspace-dev.revinci.ai</div>
+  </div>
+</header>
+
+<main>
+  <div class="wrap">
+    <section class="card" aria-labelledby="s-browser">
+      <div class="tabs"><span class="pill">Option A · nothing to install</span></div>
+      <h2 id="s-browser">Run it in your browser</h2>
+      <p class="sub">Uses the Revinci login you already have. The test panel opens over Revinci with the screens on the left and results on the right.</p>
+      <ol class="steps">
+        <li><div><b>Open Revinci and log in</b>, for example <code>https://tessla-workspace-dev.revinci.ai/dashboard</code>.</div></li>
+        <li><div><b>Start the runner</b> in that tab, either way:
+          <div class="note" style="margin-top:8px"><b>Bookmark:</b> drag this button to your bookmarks bar (<kbd>⌘</kbd> <kbd>Shift</kbd> <kbd>B</kbd> shows it), then click it on the Revinci tab.</div>
+          <a class="bm" id="bm" href="javascript:(function(){var s=document.createElement('script');s.src='https://abhiramupadrashta.github.io/revinci-automation/runner.js?v='+Date.now();s.onerror=function(){alert('Could not load Revinci Test Automation from https://abhiramupadrashta.github.io/revinci-automation')};document.body.appendChild(s)})()" draggable="true" aria-label="Revinci Tests bookmark — drag to your bookmarks bar"><span aria-hidden="true"><svg viewBox="0 0 804 603" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M796.867 0H370.227C351.277 0 333.297 8.38001 321.117 22.89L259.677 96.04C256.097 100.3 259.127 106.8 264.687 106.8H691.047C709.997 106.8 727.977 98.42 740.157 83.91L801.787 10.54C805.297 6.37001 802.327 0 796.877 0H796.867Z" fill="#1D231D"/>
+<path d="M678.397 135.74H251.757C232.807 135.74 214.827 144.12 202.647 158.63L147.007 224.87C144.127 227.91 140.747 231.08 137.307 233.44C129.297 238.930 123.897 241.88 113.197 242.54H6.42747C0.977473 242.54 -1.99256 248.91 1.51744 253.080L273.607 576.99C287.267 593.25 307.417 602.64 328.657 602.64H420.857C426.307 602.64 429.277 596.27 425.767 592.1L150.797 264.76C148.307 260.76 146.517 255.5 149.377 250.5C152.637 244.8 159.627 243.02 165.007 242.53H572.568C591.518 242.53 609.497 234.15 621.677 219.64L683.307 146.27C686.818 142.1 683.847 135.73 678.397 135.73V135.74Z" fill="#1D231D"/>
+</svg></span>Revinci Tests</a>
+          <div class="note" style="margin-top:12px"><b>Console:</b> press <kbd>⌥</kbd> <kbd>⌘</kbd> <kbd>J</kbd> in the Revinci tab, paste this line and press <kbd>Enter</kbd>. If asked, type <code>allow pasting</code> first.</div>
+          <pre class="cmd" id="cmd-console">var s=document.createElement('script');s.src='https://abhiramupadrashta.github.io/revinci-automation/runner.js?v='+Date.now();document.body.appendChild(s)</pre></div></li>
+        <li><div><b>Pick what to test</b> (or <i>Full end-to-end</i>) and click <b>Run tests</b>. Download the report from the panel when it finishes.</div></li>
+      </ol>
+    </section>
+
+    <section class="card" aria-labelledby="s-mac">
+      <div class="tabs"><span class="pill">Option B · Terminal on a Mac</span></div>
+      <h2 id="s-mac">Run the full app</h2>
+      <p class="sub">A control panel at <code>http://localhost:4600</code> where you enter the Revinci URL, email and password. A real Chrome window drives the screens. Needs <a href="https://nodejs.org" target="_blank" rel="noopener">Node.js 18+</a> and Git.</p>
+      <ol class="steps">
+        <li><div><b>First time: download and start</b>
+<pre class="cmd" id="cmd-first"><span class="c"># download the app</span>
+git clone https://github.com/AbhiramUpadrashta/revinci-automation.git
+cd revinci-automation
+
+<span class="c"># install and start (opens http://localhost:4600)</span>
+npm install
+npm start</pre></div></li>
+        <li><div><b>Next time: update and start</b>
+<pre class="cmd" id="cmd-next">cd ~/revinci-automation
+git pull
+npm install
+npm start</pre></div></li>
+        <li><div><b>Share it with your team</b> (optional). Starts the app with a password and gives you a public <code>trycloudflare.com</code> link. It works while this Terminal stays open and the Mac is awake.
+<pre class="cmd" id="cmd-share">cd ~/revinci-automation
+command -v cloudflared &gt;/dev/null || brew install cloudflared
+HOSTED=1 APP_PASSWORD='choose-a-password' npm start &amp;
+sleep 5 &amp;&amp; cloudflared tunnel --url http://localhost:4600</pre>
+          <div class="note">Copy the <code>https://….trycloudflare.com</code> address Cloudflare prints and share it with the password.</div></div></li>
+      </ol>
+    </section>
+
+    <section class="card" aria-labelledby="s-what">
+      <h2 id="s-what">What it tests</h2>
+      <p class="sub">Tick any mix. Each run tags its records with a code like <code>ATK3F9Q</code>, so runs never collide, and later steps reuse the account and product created earlier in the same run.</p>
+      <div class="grid">
+        <div class="suite"><h3>Admin setup</h3><ul><li>Currency and exchange rate</li><li>Unit of measure</li><li>Attribute and attribute group</li><li>Price profile and cost profile</li><li>Customer account</li></ul></div>
+        <div class="suite"><h3>API key</h3><ul><li>Checks Settings ▸ API Keys</li><li>Reuses a saved key or one you paste</li><li>Creates one only if none is active</li><li>Shows the key in the panel</li></ul></div>
+        <div class="suite"><h3>Product setup</h3><ul><li>Product, bundle, option, option group</li><li>Feature, feature offering, agent feature</li><li>Product with features or offerings</li><li>Simple and workflow agents</li></ul></div>
+        <div class="suite"><h3>Quote · Order · Entitlement</h3><ul><li>Quote → bag → finalize → lifecycle</li><li>Order → bag → finalize</li><li>Activate entitlement, map external ID</li><li>Send a usage event to the plan</li></ul></div>
+        <div class="suite"><h3>API testing</h3><ul><li>Auth checks, including bad keys</li><li>Accounts, entitlements, plans, rating</li><li>Wallets, carryover, consumption rules</li><li>Usage ingest, single and bulk</li></ul></div>
+      </div>
+    </section>
+
+    <section class="card" aria-labelledby="s-know">
+      <h2 id="s-know">Good to know</h2>
+      <ul class="facts">
+        <li>Run it against the dev workspace. It creates real records there.</li>
+        <li>Option A never asks for a password; it works only in a tab where you're logged in. Option B asks for one per run and never saves it.</li>
+        <li>Revinci allows one active API key and shows its secret once. Paste your existing key into the panel, or tick <b>Revoke &amp; recreate</b> to replace it.</li>
+        <li>If a step fails, the report shows the screen it stopped on.</li>
+        <li>Source code: <a href="https://github.com/AbhiramUpadrashta/revinci-automation" target="_blank" rel="noopener">github.com/AbhiramUpadrashta/revinci-automation</a></li>
+      </ul>
+    </section>
+  </div>
+</main>
+
+<script>
+(function () {
+  document.getElementById('bm').addEventListener('click', function (e) { e.preventDefault(); });
+  document.querySelectorAll('pre.cmd').forEach(function (pre) {
+    var b = document.createElement('button'); b.className = 'copy'; b.type = 'button'; b.textContent = 'Copy';
+    b.addEventListener('click', function () {
+      var text = pre.innerText.replace(/^Copy\s*$/m, '').replace(/\nCopied\s*$/, '').trim();
+      var done = function (t) { b.textContent = t; setTimeout(function () { b.textContent = 'Copy'; }, 1500); };
+      try { navigator.clipboard.writeText(text).then(function () { done('Copied'); }, function () { done('Select & copy'); }); } catch (e) { done('Select & copy'); }
+    });
+    pre.appendChild(b);
+  });
+})();
+</script>
+
+</body>
+</html>

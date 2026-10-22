@@ -1,0 +1,147 @@
+<title>Revinci Test Automation</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* Layout: one working column — install steps first, then what it tests; a dark Revinci band on top. */
+:root {
+  --ink: #1d231d; --paper: #f4f7f1; --card: #ffffff; --line: #dfe6da; --mute: #5f6b5c;
+  --lime: #a6e46b; --lime-soft: #eaf8dc; --lime-ink: #2f5a12; --warn-bg: #fff4dd; --warn: #8a5a0b;
+  --band: #1d231d; --band-fg: #f2f7ee; --band-mute: #b6c3b2;
+  --f-display: "Manrope", "Segoe UI", system-ui, sans-serif;
+  --f-body: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --ink: #e8efe3; --paper: #121612; --card: #1a201a; --line: #2b342a; --mute: #9aa896;
+  --lime-soft: #20301a; --lime-ink: #bdf08f; --warn-bg: #2e2414; --warn: #f0c070;
+  --band: #0b0e0b; --band-fg: #f2f7ee; --band-mute: #9aa896; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --ink: #e8efe3; --paper: #121612; --card: #1a201a; --line: #2b342a; --mute: #9aa896;
+  --lime-soft: #20301a; --lime-ink: #bdf08f; --warn-bg: #2e2414; --warn: #f0c070;
+  --band: #0b0e0b; --band-fg: #f2f7ee; --band-mute: #9aa896; color-scheme: dark }
+* { box-sizing: border-box }
+body { background: var(--paper); color: var(--ink); font: 15px/1.55 var(--f-body) }
+.wrap { max-width: 920px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)) }
+header { background: var(--band); color: var(--band-fg) }
+header .wrap { padding-block: 34px 30px; display: grid; gap: 14px }
+.brand { display: flex; align-items: center; gap: 12px }
+.mark { width: 40px; height: 40px; border-radius: 11px; background: var(--lime); display: grid; place-items: center; flex: none }
+.mark svg { width: 25px }
+.brand span { font: 700 15px var(--f-display); letter-spacing: .3px }
+.brand small { color: var(--band-mute); font: 500 13px var(--f-body); margin-left: 4px }
+h1 { font: 800 clamp(28px, 5vw, 40px)/1.12 var(--f-display); margin: 6px 0 0; text-wrap: balance; letter-spacing: -.5px }
+.lede { color: var(--band-mute); max-width: 62ch; margin: 0 }
+main .wrap { padding-block: 28px 56px; display: grid; gap: 22px }
+section.card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 22px }
+h2 { font: 700 19px/1.25 var(--f-display); margin: 0 0 4px; text-wrap: balance }
+.sub { color: var(--mute); margin: 0 0 16px; max-width: 65ch }
+ol.steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; counter-reset: s }
+ol.steps > li { display: grid; grid-template-columns: 30px 1fr; gap: 12px; counter-increment: s; align-items: start }
+ol.steps > li::before { content: counter(s); width: 28px; height: 28px; border-radius: 50%; background: var(--lime-soft); color: var(--lime-ink); font: 700 14px var(--f-display); display: grid; place-items: center }
+ol.steps > li > div { min-width: 0 }
+.bm { display: inline-flex; align-items: center; gap: 10px; background: var(--lime); color: #1d231d; font: 700 15px var(--f-display); padding: 11px 18px; border-radius: 10px; text-decoration: none; cursor: grab; border: 2px dashed #5f9a2c; margin-top: 8px }
+.bm svg { width: 18px }
+.bm:focus-visible, button:focus-visible { outline: 3px solid var(--lime-ink); outline-offset: 2px }
+.note { font-size: 13px; color: var(--mute); margin-top: 6px }
+kbd { font: 500 12px var(--f-mono); background: var(--paper); border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 5px; padding: 1px 6px }
+code { font: 13px var(--f-mono); background: var(--paper); border: 1px solid var(--line); border-radius: 5px; padding: 1px 5px; word-break: break-all }
+.row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 8px }
+button { font: 600 14px var(--f-body); border-radius: 9px; padding: 9px 14px; cursor: pointer; border: 1px solid var(--line); background: var(--card); color: var(--ink) }
+button.primary { background: var(--ink); color: var(--paper); border-color: var(--ink) }
+.toast { font-size: 13px; color: var(--lime-ink) }
+textarea#code { width: 100%; height: 90px; font: 11px var(--f-mono); border: 1px solid var(--line); border-radius: 9px; padding: 8px; background: var(--paper); color: var(--ink); resize: vertical; margin-top: 8px }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px }
+.suite { border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; background: var(--paper) }
+.suite h3 { font: 700 15px var(--f-display); margin: 0 0 6px }
+.suite ul { margin: 0; padding-left: 18px; color: var(--mute); font-size: 13.5px }
+.callout { background: var(--warn-bg); color: var(--warn); border-radius: 12px; padding: 14px 16px; font-size: 14px }
+.callout b { color: var(--warn) }
+.facts { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none }
+.facts li { padding-left: 16px; position: relative; max-width: 70ch }
+.facts li::before { content: ""; position: absolute; left: 0; top: .65em; width: 6px; height: 6px; border-radius: 50%; background: var(--lime) }
+.ws { font: 500 13px var(--f-mono); color: var(--band-fg); background: #2c352b; border-radius: 7px; padding: 6px 10px; justify-self: start; max-width: 100%; overflow-wrap: anywhere }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important } }
+</style>
+
+<header>
+  <div class="wrap">
+    <div class="brand"><div class="mark" aria-hidden="true">__LOGO__</div><span>Revinci</span><small>Test Automation</small></div>
+    <h1>Test your Revinci workspace from the browser</h1>
+    <p class="lede">Nothing to install. Paste the runner into your Revinci tab once and it drives the screens step by step, using the login you already have.</p>
+    <div class="ws">tessla-workspace-dev.revinci.ai</div>
+  </div>
+</header>
+
+<main>
+  <div class="wrap">
+    <section class="card" aria-labelledby="s-setup">
+      <h2 id="s-setup">Set it up once in this browser</h2>
+      <p class="sub">About a minute. Works in Arc, Chrome, Edge and Brave.</p>
+      <ol class="steps">
+        <li><div><b>Open Revinci and log in</b> as you normally do, for example <code>https://tessla-workspace-dev.revinci.ai/dashboard</code>.</div></li>
+        <li><div><b>Open the browser console</b> in that tab: <kbd>⌥</kbd> <kbd>⌘</kbd> <kbd>J</kbd> on Mac, <kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>J</kbd> on Windows. In Arc you can also right-click the page and choose <b>Inspect</b>, then the <b>Console</b> tab.</div></li>
+        <li><div><b>Copy the runner and paste it into the console</b>, then press <kbd>Enter</kbd>. If the console asks, type <code>allow pasting</code> and press <kbd>Enter</kbd> first, then paste again.
+          <div class="row"><button class="primary" id="copy" type="button">Copy runner code</button><span class="toast" id="copied" role="status"></span></div>
+          <textarea id="code" readonly aria-label="Runner code"></textarea>
+          <div class="note">The test panel opens over Revinci straight away. A copy is saved in this browser so you don't need to paste again.</div></div></li>
+      </ol>
+    </section>
+
+    <section class="card" aria-labelledby="s-launch">
+      <h2 id="s-launch">Start it next time</h2>
+      <p class="sub">Pick whichever is easier. Both need you to be logged in to Revinci in that tab.</p>
+      <ol class="steps">
+        <li><div><b>Bookmark:</b> drag this button to your bookmarks bar (<kbd>⌘</kbd> <kbd>Shift</kbd> <kbd>B</kbd> shows it), then click it on any Revinci page.<br>
+          <a class="bm" id="bm" href="__LAUNCHER__" draggable="true" aria-label="Launch Revinci Test Automation — drag to your bookmarks bar"><span aria-hidden="true">__LOGO__</span>Launch Revinci Tests</a>
+          <div class="note">Drag it, don't click it here. If your browser won't run bookmarks like this, use the console line instead.</div></div></li>
+        <li><div><b>Console:</b> paste this one line into the Revinci console.
+          <div class="row"><code id="short">(0,eval)(localStorage.getItem("rvAuto.code"))</code><button type="button" id="copyShort">Copy</button></div></div></li>
+      </ol>
+    </section>
+
+    <section class="card" aria-labelledby="s-what">
+      <h2 id="s-what">What it tests</h2>
+      <p class="sub">Tick any mix in the panel. Each run tags its records with a code like <code>ATK3F9Q</code>, so runs never collide and the order can reuse the account and product created earlier in the same run.</p>
+      <div class="grid">
+        <div class="suite"><h3>Admin setup</h3><ul><li>Currency and exchange rate</li><li>Unit of measure</li><li>Attribute and attribute group</li><li>Price profile and cost profile</li><li>Customer account</li></ul></div>
+        <div class="suite"><h3>API key</h3><ul><li>Checks Settings ▸ API Keys</li><li>Reuses a saved key or one you paste</li><li>Creates one only if none is active</li><li>Shows the key in the panel</li></ul></div>
+        <div class="suite"><h3>Product setup</h3><ul><li>Product, bundle, option, option group</li><li>Feature, feature offering, agent feature</li><li>Product with features or offerings</li><li>Simple and workflow agents</li></ul></div>
+        <div class="suite"><h3>Quote · Order · Entitlement</h3><ul><li>Quote → bag → finalize → lifecycle</li><li>Order → bag → finalize</li><li>Activate entitlement, map external ID</li><li>Send a usage event to the plan</li></ul></div>
+        <div class="suite"><h3>API testing</h3><ul><li>Auth checks, including bad keys</li><li>Accounts, entitlements, plans, rating</li><li>Wallets, carryover, consumption rules</li><li>Usage ingest, single and bulk</li></ul></div>
+      </div>
+    </section>
+
+    <section class="card" aria-labelledby="s-know">
+      <h2 id="s-know">Good to know</h2>
+      <ul class="facts">
+        <li>The runner never asks for your password. It works only in a tab where you're already logged in.</li>
+        <li>It creates real records in the workspace you run it on. Use the dev workspace.</li>
+        <li>Revinci allows one active API key and shows its secret only once. Paste your existing key into the panel, or tick <b>Revoke &amp; recreate</b> to replace it. The key is saved only in your browser.</li>
+        <li>Download the report from the panel when a run finishes. Failed steps show the screen they stopped on.</li>
+        <li>If your session expires mid-run, log in again and run the remaining options.</li>
+      </ul>
+    </section>
+  </div>
+</main>
+
+<script type="text/plain" id="runner">__CODE__</script>
+<script>
+(function () {
+  var code = document.getElementById('runner').textContent;
+  var bm = document.getElementById('bm');
+  bm.addEventListener('click', function (e) { e.preventDefault(); });
+  document.getElementById('copyShort').addEventListener('click', function (e) {
+    var t = document.getElementById('short').textContent, b = e.currentTarget;
+    try { navigator.clipboard.writeText(t).then(function () { b.textContent = 'Copied'; }, function () { b.textContent = 'Select and copy'; }); } catch (x) { b.textContent = 'Select and copy'; }
+  });
+  var ta = document.getElementById('code');
+  ta.value = code;
+  document.getElementById('copy').addEventListener('click', function () {
+    var done = function (msg) { document.getElementById('copied').textContent = msg; };
+    try {
+      navigator.clipboard.writeText(code).then(function () { done('Copied. Paste it into the Revinci console.'); }, function () { ta.focus(); ta.select(); done('Press ⌘C / Ctrl+C to copy the selected code.'); });
+    } catch (e) { ta.focus(); ta.select(); done('Press ⌘C / Ctrl+C to copy the selected code.'); }
+  });
+})();
+</script>

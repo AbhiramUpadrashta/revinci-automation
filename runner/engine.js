@@ -68,7 +68,7 @@ class Run {
     const needsBrowser = true; // login is always needed (tenant + session token for lookups)
     try {
       if (needsBrowser) {
-        const opts = { headless: !!cfg.headless, slowMo: cfg.slowMo ?? 120 };
+        const opts = { headless: !!cfg.headless, slowMo: cfg.slowMo ?? 120, args: ['--disable-dev-shm-usage', '--disable-gpu', '--no-zygote', '--disable-extensions'] };
         try {
           this.browser = await chromium.launch({ ...opts, channel: cfg.channel || undefined });
         } catch (e) {

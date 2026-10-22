@@ -75,9 +75,13 @@ document.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => {
 
 function host() { try { return new URL($('baseUrl').value).host; } catch (_) { return ''; } }
 
+function browserKey() { try { return JSON.parse(LS.get('rv.key.' + host()) || 'null'); } catch (_) { return null; } }
+
 async function refreshState() {
   const s = await fetch('/api/state').then(r => r.json());
-  const k = s.apiKeys[host()];
+  let k = s.apiKeys[host()];
+  const bk = browserKey();
+  if (!k && bk) k = { name: bk.name, source: (bk.source || 'saved') + ' · this browser', masked: bk.key.slice(0, 12) + '••••••••' + bk.key.slice(-4), savedAt: bk.savedAt, local: true };
   const box = $('keyInfo');
   if (k) {
     box.className = 'keybox';
@@ -91,8 +95,9 @@ async function refreshState() {
   setRunning(s.running);
 }
 $('baseUrl').addEventListener('change', refreshState);
-$('reveal').onclick = async () => { const r = await fetch('/api/apikey/reveal?host=' + encodeURIComponent(host())).then(r => r.json()); $('keyVal').textContent = r.key; };
-$('copy').onclick = async () => { const r = await fetch('/api/apikey/reveal?host=' + encodeURIComponent(host())).then(r => r.json()); await navigator.clipboard.writeText(r.key); $('copy').textContent = 'Copied'; setTimeout(() => $('copy').textContent = 'Copy', 1500); };
+async function fullKey() { const r = await fetch('/api/apikey/reveal?host=' + encodeURIComponent(host())).then(r => r.ok ? r.json() : {}).catch(() => ({})); return r.key || browserKey()?.key || ''; }
+$('reveal').onclick = async () => { $('keyVal').textContent = await fullKey(); };
+$('copy').onclick = async () => { await navigator.clipboard.writeText(await fullKey()).catch(() => {}); $('copy').textContent = 'Copied'; setTimeout(() => $('copy').textContent = 'Copy', 1500); };
 
 function setRunning(on) {
   $('run').disabled = on; $('stop').hidden = !on;
@@ -105,7 +110,7 @@ $('run').onclick = async () => {
   const body = {
     baseUrl: $('baseUrl').value.trim(), email: $('email').value.trim(), password: $('password').value,
     suites: selection(), headless: $('headless').checked, video: $('video').checked, slowMo: +$('slowMo').value,
-    apiKey: $('apiKey').value, rotateKey: $('rotateKey').checked, apiBase: $('apiBase').value,
+    apiKey: $('apiKey').value.trim() || (browserKey()?.key || ''), rotateKey: $('rotateKey').checked, apiBase: $('apiBase').value,
     product: $('product').value, account: $('account').value, planNumber: $('planNumber').value,
   };
   if ($('rotateKey').checked && !confirm('This will revoke the currently active API key in Revinci. Anything using it will stop working. Continue?')) return;
@@ -148,7 +153,7 @@ function listen() {
     if (ev.type === 'log') { const div = document.createElement('div'); div.className = ev.level; div.textContent = `${new Date(ev.t || Date.now()).toLocaleTimeString()}  ${ev.msg}`; $('log').appendChild(div); $('log').scrollTop = 1e9; }
     if (ev.type === 'api') { const tr = document.createElement('tr'); tr.innerHTML = `<td class="code">${ev.method}</td><td class="code">${esc(ev.path)}</td><td class="code s${String(ev.status)[0]}">${ev.status}</td><td>${ev.ms}</td><td>${ev.auth}</td>`; tr.title = ev.sample || ''; $('apis').appendChild(tr); }
     if (ev.type === 'screen') { $('screen').src = 'data:image/jpeg;base64,' + ev.data; $('liveUrl').textContent = ev.url || ''; $('liveHint').hidden = true; }
-    if (ev.type === 'apikey') refreshState();
+    if (ev.type === 'apikey') { if (ev.key) LS.set('rv.key.' + host(), JSON.stringify({ key: ev.key, name: ev.name, source: ev.source, savedAt: Date.now() })); refreshState(); }
     if (ev.type === 'run' && ev.status === 'running') { if (!steps.size) resetView(ev.tag); setRunning(true); }
     if (ev.type === 'run' && ev.status === 'done') { setRunning(false); $('reportBox').hidden = false; $('reportLink').href = ev.report; refreshState(); }
   };

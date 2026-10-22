@@ -18,11 +18,15 @@ If Playwright's Chromium can't be downloaded, the app automatically uses your in
 
 The app can run on a server so anyone on the team opens it by URL. In hosted mode the automation browser runs headless on the server and the **Live view** tab streams what it is doing; the whole panel is protected by `APP_PASSWORD`.
 
-**Render (one click, uses `render.yaml`):**
-1. Push this repo to GitHub.
-2. On [render.com](https://render.com): **New ▸ Blueprint** → select the repo.
-3. Enter an `APP_PASSWORD` when asked → **Apply**. Render builds the `Dockerfile` and gives you `https://revinci-automation-xxxx.onrender.com`.
-4. Open the link, sign in with any user name + that password.
+**Render (one click, free plan):**
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/abhiramupadrashta/revinci-automation)
+
+1. Click the button and sign in to Render (GitHub sign-in is fine).
+2. Choose a panel password for `APP_PASSWORD` → **Apply**. The first build takes a few minutes.
+3. Open `https://revinci-automation-xxxx.onrender.com`, sign in with any user name + that password, enter the Revinci URL, email and password, tick the tests, click **Run tests**, and watch the **Live view** tab.
+
+On the free plan the service sleeps when idle; the first visit after a while takes about a minute to wake. The API key is remembered in your own browser.
 
 **Any Docker host:**
 ```bash
@@ -34,7 +38,7 @@ docker run -p 4600:4600 -e APP_PASSWORD=choose-one -v revinci-data:/var/data -e 
 |---|---|
 | `HOSTED=1` | bind 0.0.0.0, force headless, don't open a local browser |
 | `APP_PASSWORD` | password for the panel (HTTP Basic) — **always set this when public** |
-| `DATA_DIR` | where the stored API key lives (mount a disk so it survives redeploys) |
+| `DATA_DIR` | optional: server-side store for the API key (the panel also remembers it in your browser) |
 | `PORT` | default 4600 |
 
 The server must be able to reach your Revinci workspace and API hosts (e.g. `*-dev.revinci.ai`); if the dev environment is IP-restricted, allow the host's outbound IP or run locally.
