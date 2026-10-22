@@ -1,0 +1,20 @@
+{
+  "name": "revinci-automation",
+  "version": "1.0.0",
+  "description": "Browser-run end-to-end test automation for the Revinci platform (admin setup, products, quote-order-entitlement, API)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "postinstall": "playwright install chromium || echo \"(Chromium download skipped — installed Google Chrome will be used)\"",
+    "check": "node scripts/check.js"
+  },
+  "license": "UNLICENSED",
+  "dependencies": {
+    "express": "^5.3.0",
+    "playwright": "^1.64.1"
+  },
+  "private": true,
+  "engines": {
+    "node": ">=18"
+  }
+}

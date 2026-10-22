@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Revinci Test Automation</title>
+<link rel="icon" href="/revinci-logo.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#1D231D;--ink2:#3b443a;--mute:#6b7569;--line:#e3e8e0;--bg:#f5f7f3;--card:#fff;--lime:#a6e46b;--lime2:#d9f5bf;--lime3:#f0fbe6;--red:#c23b3b;--red2:#fde7e7;--amber:#b7791f;--amber2:#fdf3df;--blue:#2f5fd0}
+*{box-sizing:border-box}html,body{margin:0}
+body{font-family:Inter,system-ui,sans-serif;background:var(--bg);color:var(--ink);font-size:14px}
+header{display:flex;align-items:center;gap:14px;padding:14px 24px;background:var(--ink);color:#fff;position:sticky;top:0;z-index:5}
+.logo{width:38px;height:38px;border-radius:10px;background:var(--lime);display:grid;place-items:center}
+.logo img{width:24px}
+header h1{font-size:17px;margin:0;font-weight:600;letter-spacing:.2px}
+header small{color:#b9c4b6;font-weight:400;margin-left:6px}
+header .sp{flex:1}
+.badge{font-size:12px;padding:4px 10px;border-radius:99px;background:#2c352b;color:#cfe9b8}
+.badge.run{background:var(--lime);color:var(--ink)}
+main{display:grid;grid-template-columns:340px 1fr;gap:20px;padding:20px 24px;max-width:1500px;margin:0 auto}
+@media(max-width:980px){main{grid-template-columns:1fr;padding:16px}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 18px;margin-bottom:16px}
+.card h2{font-size:13px;text-transform:uppercase;letter-spacing:.7px;color:var(--mute);margin:0 0 12px;font-weight:600}
+label.f{display:block;font-size:12.5px;color:var(--ink2);margin:10px 0 4px;font-weight:500}
+input[type=text],input[type=url],input[type=email],input[type=password],input[type=number]{width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:9px;font:inherit;background:#fbfcfa}
+input:focus{outline:2px solid var(--lime);border-color:transparent}
+.row{display:flex;gap:8px;align-items:center}
+.chk{display:flex;gap:8px;align-items:flex-start;margin:8px 0;cursor:pointer;font-size:13.5px}
+.chk input{margin-top:2px;accent-color:#5fa52b}
+.hint{font-size:12px;color:var(--mute);margin-top:4px;line-height:1.45}
+button{font:inherit;cursor:pointer;border-radius:9px;border:1px solid var(--line);background:#fff;padding:8px 12px;color:var(--ink)}
+button:hover{border-color:#c7d0c3}
+button.primary{background:var(--ink);color:#fff;border-color:var(--ink);font-weight:600;padding:11px 18px}
+button.primary:hover{background:#2c352b}
+button.primary:disabled{opacity:.45;cursor:not-allowed}
+button.danger{color:var(--red);border-color:#f0c9c9}
+button.ghost{border:none;background:none;color:var(--blue);padding:4px 6px}
+.presets{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}
+.presets button{background:var(--lime3);border-color:var(--lime2)}
+.suites{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:14px}
+.suite{border:1px solid var(--line);border-radius:12px;padding:12px 14px;background:#fcfdfb}
+.suite.on{border-color:#b7df92;background:var(--lime3)}
+.suite h3{font-size:14.5px;margin:0 0 4px;display:flex;align-items:center;gap:8px}
+.suite h3 .n{font-size:11px;background:var(--ink);color:var(--lime);border-radius:6px;padding:2px 7px}
+.suite .all{font-size:12px}
+.keybox{font-family:'JetBrains Mono',monospace;font-size:12px;background:var(--ink);color:#d9f5bf;padding:10px;border-radius:9px;word-break:break-all;margin-top:6px}
+.keybox.empty{background:var(--amber2);color:var(--amber);font-family:Inter}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin:-4px 0 12px}
+.tabs button{border:none;border-radius:0;background:none;padding:8px 12px;color:var(--mute);border-bottom:2px solid transparent}
+.tabs button.on{color:var(--ink);border-color:var(--ink);font-weight:600}
+.kpis{display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+.kpi{border:1px solid var(--line);border-radius:10px;padding:8px 14px;min-width:96px;background:#fcfdfb}
+.kpi b{display:block;font-size:22px}
+.steps{list-style:none;margin:0;padding:0;max-height:440px;overflow:auto}
+.steps li{display:grid;grid-template-columns:22px 1fr auto;gap:10px;padding:8px 6px;border-bottom:1px solid #f0f3ee;align-items:start}
+.steps .d{grid-column:2/4;font-size:12px;color:var(--mute);margin-top:-4px;word-break:break-word}
+.steps .d.err{color:var(--red)}
+.dot{width:16px;height:16px;border-radius:50%;margin-top:2px;background:#dfe5dc}
+.dot.running{background:var(--lime);animation:p 1s infinite}
+.dot.passed{background:#5fa52b}.dot.failed{background:var(--red)}
+@keyframes p{50%{opacity:.4}}
+.log{font-family:'JetBrains Mono',monospace;font-size:12px;background:#121712;color:#cdd8c9;border-radius:10px;padding:12px;height:440px;overflow:auto;white-space:pre-wrap}
+.log .ok{color:#a6e46b}.log .error{color:#ff8a8a}.log .warn{color:#f5c26b}.log .head{color:#fff;font-weight:600}
+table.api{width:100%;border-collapse:collapse;font-size:12.5px}
+table.api td,table.api th{padding:6px 8px;border-bottom:1px solid #f0f3ee;text-align:left}
+.code{font-family:'JetBrains Mono',monospace}
+.s2{color:#2d7a12}.s4,.s5,.s0{color:var(--red)}
+.hist a{color:var(--blue);text-decoration:none}
+.hist div{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f0f3ee;font-size:12.5px}
+.err-banner{background:var(--red2);color:var(--red);padding:10px 12px;border-radius:9px;margin-top:10px;display:none}
+.runbar{display:flex;gap:10px;align-items:center;margin-top:14px;flex-wrap:wrap}
+.live{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fcfdfb}.live img{display:block;width:100%;height:auto}.live img:not([src]){display:none}.urlbar{font-family:'JetBrains Mono',monospace;font-size:12px;padding:7px 10px;background:#eef2eb;color:var(--ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.live .hint{padding:16px}
+details summary{cursor:pointer;color:var(--ink2);font-weight:500;margin-top:6px}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo"><img src="/revinci-logo.svg" alt="Revinci"></div>
+  <h1>Revinci <small>Test Automation</small></h1>
+  <div class="sp"></div>
+  <span id="status" class="badge">Idle</span>
+</header>
+
+<main>
+<aside>
+  <section class="card">
+    <h2>Workspace</h2>
+    <label class="f" for="baseUrl">Revinci URL</label>
+    <input id="baseUrl" type="url" placeholder="https://tessla-workspace-dev.revinci.ai/dashboard/crm/account">
+    <label class="f" for="email">User name (email)</label>
+    <input id="email" type="email" autocomplete="username">
+    <label class="f" for="password">Password</label>
+    <input id="password" type="password" autocomplete="current-password">
+    <div class="hint">Password is used only for this run and is never saved.</div>
+    <label class="chk"><input id="remember" type="checkbox" checked> Remember URL &amp; email on this computer</label>
+  </section>
+
+  <section class="card">
+    <h2>API key</h2>
+    <div id="keyInfo" class="keybox empty">No key stored for this workspace yet.</div>
+    <div class="row" style="margin-top:6px"><button class="ghost" id="reveal" hidden>Reveal</button><button class="ghost" id="copy" hidden>Copy</button></div>
+    <label class="f" for="apiKey">Paste existing key (optional)</label>
+    <input id="apiKey" type="password" placeholder="rvc_…">
+    <label class="chk"><input id="rotateKey" type="checkbox"> Revoke the active key &amp; create a new one</label>
+    <div class="hint">Revinci allows one active key and shows its secret only once. Without a stored or pasted key, the run creates one only if none is active.</div>
+  </section>
+
+  <section class="card">
+    <h2>Run settings</h2>
+    <label class="chk" id="headlessRow"><input id="headless" type="checkbox"> Run in background (headless)</label>
+    <div class="hint" id="hostedNote" hidden>Hosted mode: the browser runs on the server — watch it in the Live view tab.</div>
+    <label class="chk"><input id="video" type="checkbox"> Record video</label>
+    <label class="f" for="slowMo">Step speed (ms delay)</label>
+    <input id="slowMo" type="number" value="120" min="0" max="2000">
+    <details><summary>Advanced</summary>
+      <label class="f" for="apiBase">API base URL (auto-detected)</label><input id="apiBase" type="text" placeholder="https://api-dev.revinci.ai">
+      <label class="f" for="product">Product to sell (code or name)</label><input id="product" type="text" placeholder="defaults to the product created in this run">
+      <label class="f" for="account">Account for quote/order</label><input id="account" type="text" placeholder="defaults to the account created in this run">
+      <label class="f" for="planNumber">Plan number for usage events</label><input id="planNumber" type="text" placeholder="defaults to the activated entitlement">
+    </details>
+  </section>
+
+  <section class="card hist">
+    <h2>Recent runs</h2>
+    <div id="history"><span class="hint">No runs yet.</span></div>
+  </section>
+</aside>
+
+<section>
+  <section class="card">
+    <h2>What do you want to test?</h2>
+    <div class="presets">
+      <button data-preset="admin">Admin setup</button>
+      <button data-preset="products">Product setup</button>
+      <button data-preset="q2c">Quote → Order → Entitlement</button>
+      <button data-preset="api">API testing</button>
+      <button data-preset="full">Full end-to-end</button>
+      <button data-preset="none">Clear</button>
+    </div>
+    <div id="suites" class="suites"></div>
+    <div class="runbar">
+      <button class="primary" id="run">▶ Run tests</button>
+      <button class="danger" id="stop" hidden>Stop</button>
+      <span class="hint" id="planHint"></span>
+    </div>
+    <div class="err-banner" id="err"></div>
+  </section>
+
+  <section class="card">
+    <div class="tabs"><button data-tab="live">Live view</button><button class="on" data-tab="steps">Steps</button><button data-tab="log">Live log</button><button data-tab="apis">API calls</button></div>
+    <div class="kpis">
+      <div class="kpi">Passed<b id="kp" style="color:#2d7a12">0</b></div>
+      <div class="kpi">Failed<b id="kf" style="color:var(--red)">0</b></div>
+      <div class="kpi">Steps<b id="kt">0</b></div>
+      <div class="kpi">Data tag<b id="ktag" style="font-size:15px;margin-top:6px">—</b></div>
+      <div class="kpi" id="reportBox" hidden>Report<b style="font-size:14px;margin-top:7px"><a id="reportLink" target="_blank">Open ↗</a></b></div>
+    </div>
+    <div data-pane="live" hidden><div class="live"><div class="urlbar" id="liveUrl">Waiting for a run…</div><img id="screen" alt="Automation browser live view"><div class="hint" id="liveHint">The automation browser appears here while a run is in progress.</div></div></div>
+    <div data-pane="steps"><ul class="steps" id="steps"><li><span></span><span class="hint">Pick options above and click Run.</span></li></ul></div>
+    <div data-pane="log" hidden><div class="log" id="log"></div></div>
+    <div data-pane="apis" hidden><table class="api"><thead><tr><th>Method</th><th>Path</th><th>Status</th><th>ms</th><th>Auth</th></tr></thead><tbody id="apis"></tbody></table></div>
+  </section>
+</section>
+</main>
+
+<script src="/app.js"></script>
+</body>
+</html>

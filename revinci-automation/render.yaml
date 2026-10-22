@@ -1,0 +1,18 @@
+# One-click deploy on Render: New ▸ Blueprint ▸ pick this repo.
+services:
+  - type: web
+    name: revinci-automation
+    runtime: docker
+    plan: starter
+    healthCheckPath: /api/config
+    envVars:
+      - key: HOSTED
+        value: "1"
+      - key: APP_PASSWORD
+        sync: false        # Render asks you for the panel password on first deploy
+      - key: DATA_DIR
+        value: /var/data
+    disk:
+      name: revinci-automation-data
+      mountPath: /var/data
+      sizeGB: 1
