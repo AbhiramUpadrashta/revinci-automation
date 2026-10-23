@@ -190,7 +190,8 @@ async function agent(run, o) {
 async function run(r, picks) {
   for (const o of OPTIONS) {
     if (!picks.includes(o.id)) continue;
-    await r.step(`Product · ${o.label}`, () => o.special === 'optionGroup' ? optionGroup(r) : o.special === 'agent' ? (o.mode === 'simple' ? agents.simple(r) : agents.workflow(r)) : createProduct(r, o));
+    if (o.special === 'agent') { await (o.mode === 'simple' ? agents.simple(r) : agents.workflow(r)); continue; }
+    await r.step(`Product · ${o.label}`, () => o.special === 'optionGroup' ? optionGroup(r) : createProduct(r, o));
   }
 }
 

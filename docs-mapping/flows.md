@@ -36,3 +36,20 @@
 
 ## Feature Offering — type=FEATURE_OFFERING
 1. same info step; pricing; Features grid select rows → "Save"; "Parent Feature X" select (placeholder "Select a Feature X")
+
+## Workflow agent — re-mapped live 2026-10-23 (published AT Map WF2)
+1. Identify → Save details → /dashboard/agents/<uuid>?mode=workflow
+2. Agent X price: With pricing → Subscription; Transaction Unit defaults to Credit → pick Currency (USD); Price UOM Each; Start Price 0 → "Save price"
+   (agent-level One Time/Consumption/Margin cards stay on the page — sub-agent/offering clicks must be scoped to their inline panel div.rounded-xl)
+3. Add sub-agent → #name/#productCode → Continue → panel: With pricing → Consumption → segmented Flat* → Attribute Based; TU Currency; UOM Each → "Create sub-agent"
+   → "[Select attributes]" (multi) pick first → Escape → "Create Agent Matrix" → input[placeholder="Enter price"] + select "Select value" (first) → "Save Entries" → "Done"
+4. Add Outcome: #outcomes_0_outcomeId, #outcomes_0_outcomeName, criteria select #outcomes_0_successCriteria_0_successCriteriaName (type outcomeId+Enter → op "=", value auto),
+   Time Based: #outcomes_0_pricingModels_0_eventVariables_0 (type processedAt+Enter), #..._baseline 45, #..._cost 40 → "Save outcomes"
+5. Add offering → #name/#productCode → Continue → panel: With pricing → Subscription (TU Currency, UOM Each, Start Price 1500) → "Create offering"
+   → grid "What each offering includes": button "Included" per sub-agent → single "Save"
+6. "Publish" → /dashboard/agents
+
+## Simple agent — re-mapped live 2026-10-23 (published AT Map Simple 2)
+Identify → Add Outcome (same ids as workflow) → Save outcomes → With pricing → One Time (TU Currency, UOM Each, Start 99) → Save price
+→ Subscription (Start 149) → Consumption (segmented Attribute Based, UOM Each, no start) → Save price → Create Agent Matrix → Enter price 5 + "Select value" (task_completed) → Save Entries (no Done here)
+→ Margin (TU Currency, **Price UOM Each also required**, Margin Type Percentage, #marginValue 25) → Save price → Agent actions: "Skip for now" → "Publish" → /dashboard/agents

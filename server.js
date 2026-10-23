@@ -4,12 +4,16 @@
 const express = require('express');
 const path = require('path');
 const { exec } = require('child_process');
-const { Run, SUITES } = require('./runner/engine');
+// Reload the automation scripts on every run, so updated files take effect without restarting npm start.
+const RUNNER_DIR = path.join(__dirname, 'runner') + path.sep;
+function engine() {
+  for (const k of Object.keys(require.cache)) if (k.startsWith(RUNNER_DIR) && !k.endsWith(path.sep + 'store.js')) delete require.cache[k];
+  return require('./runner/engine');
+}
 const store = require('./runner/store');
 
 const PORT = process.env.PORT || 4600;
 const HOSTED = !!process.env.HOSTED || process.env.RENDER === 'true';
-const HOST = process.env.HOST || (HOSTED ? '0.0.0.0' : '127.0.0.1');
 const APP_PASSWORD = process.env.APP_PASSWORD || '';
 const FORCE_HEADLESS = HOSTED || process.env.HEADLESS === '1' || (process.platform === 'linux' && !process.env.DISPLAY);
 const app = express();
@@ -39,9 +43,11 @@ function emit(ev) {
   for (const c of clients) c.write(line);
 }
 
-app.get('/api/config', (_req, res) => res.json({ hosted: HOSTED, forceHeadless: FORCE_HEADLESS }));
+const BUILD = '2026-10-23.1';
+app.get('/api/config', (_req, res) => res.json({ hosted: HOSTED, forceHeadless: FORCE_HEADLESS, build: BUILD }));
 
 app.get('/api/meta', (_req, res) => {
+  const { SUITES } = engine();
   res.json(Object.fromEntries(Object.entries(SUITES).map(([k, s]) => [k, { title: s.title, options: s.OPTIONS.map(o => ({ id: o.id, label: o.label })) }])));
 });
 
@@ -82,6 +88,7 @@ app.post('/api/run', (req, res) => {
   const suites = b.suites || {};
   if (!Object.values(suites).some(v => v && v.length)) return res.status(400).json({ error: 'Pick at least one test option' });
   history.length = 0; lastScreen = null;
+  const { Run } = engine();
   current = new Run({
     baseUrl: b.baseUrl, email: b.email, password: b.password, suites,
     headless: FORCE_HEADLESS || !!b.headless, slowMo: Number(b.slowMo ?? 120), video: !!b.video,
@@ -101,9 +108,23 @@ app.post('/api/stop', (_req, res) => {
   res.json({ ok: true });
 });
 
-app.listen(PORT, HOST, () => {
-  const url = `http://localhost:${PORT}`;
-  console.log(`\n  Revinci Test Automation running at ${url}${HOSTED ? ' (hosted mode, headless)' : ''}${APP_PASSWORD ? ' · password protected' : ''}\n`);
-  if (HOSTED && !APP_PASSWORD) console.warn('  WARNING: set APP_PASSWORD so the public panel is not open to anyone.');
-  if (!process.env.NO_OPEN && !HOSTED) exec(`${process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'start ""' : 'xdg-open'} ${url}`);
-});
+// Refuse to start next to an older copy: on macOS two copies can share the port (IPv4 vs IPv6)
+// and the browser keeps talking to the old one.
+const httpGet = u => new Promise(r => require('http').get(u, res => { let d = ''; res.on('data', c => d += c); res.on('end', () => r(d)); }).on('error', () => r(null)).setTimeout(1500, function () { this.destroy(); r(null); }));
+(async () => {
+  if (!HOSTED) {
+    const other = (await httpGet(`http://127.0.0.1:${PORT}/api/config`)) || (await httpGet(`http://[::1]:${PORT}/api/config`));
+    if (other) {
+      console.error(`\n  Another copy of Revinci Test Automation is already running on port ${PORT} (${other.includes('"build"') ? 'build ' + JSON.parse(other).build : 'an OLD version'}).`);
+      console.error(`  Close it first:   lsof -ti tcp:${PORT} | xargs kill -9   then run  npm start  again.\n`);
+      process.exit(1);
+    }
+  }
+  app.listen(PORT, HOSTED ? '0.0.0.0' : (process.env.HOST || '127.0.0.1'), () => {
+    const url = `http://localhost:${PORT}`;
+    console.log(`\n  Revinci Test Automation (build ${BUILD}) running at ${url}${HOSTED ? ' (hosted mode, headless)' : ''}${APP_PASSWORD ? ' · password protected' : ''}`);
+    console.log('  Keep this window open while you use the panel. Press Ctrl+C to stop.\n');
+    if (HOSTED && !APP_PASSWORD) console.warn('  WARNING: set APP_PASSWORD so the public panel is not open to anyone.');
+    if (!process.env.NO_OPEN && !HOSTED) exec(`${process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'start ""' : 'xdg-open'} ${url}`);
+  }).on('error', e => { console.error(`\n  Could not start on port ${PORT}: ${e.code}. Run:  lsof -ti tcp:${PORT} | xargs kill -9  then npm start\n`); process.exit(1); });
+})();

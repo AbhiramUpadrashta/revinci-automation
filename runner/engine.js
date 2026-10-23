@@ -86,7 +86,7 @@ class Run {
     const { cfg } = this;
     this.startedAt = Date.now();
     this.emit({ type: 'run', status: 'running', id: this.id, tag: this.tag });
-    this.log(`Run ${this.id} · data tag ${this.tag}`);
+    this.log(`Run ${this.id} · data tag ${this.tag} · scripts build 2026-10-23.1`);
     const needsBrowser = true; // login is always needed (tenant + session token for lookups)
     try {
       if (needsBrowser) {
@@ -109,13 +109,18 @@ class Run {
         this.startScreenFeed();
         await this.step('Log in to Revinci', () => login(this), { critical: true });
       }
-      const order = ['admin', 'apikey', 'products', 'q2c', 'api'];
-      for (const key of order) {
-        const picks = cfg.suites[key];
-        if (!picks || !picks.length) continue;
-        this.emit({ type: 'suite', name: key });
-        this.log(`── ${SUITES[key].title} ──`, 'head');
-        await SUITES[key].run(this, picks);
+      // Run order: the user's own sequence ("suite.option" keys) when given, else the default suite order.
+      const selected = [];
+      for (const key of ['admin', 'apikey', 'products', 'q2c', 'api']) for (const id of cfg.suites[key] || []) selected.push(`${key}.${id}`);
+      const custom = (cfg.order || []).filter(k => selected.includes(k));
+      const sequence = [...new Set([...custom, ...selected])];
+      if (custom.length) this.log(`Custom run order: ${sequence.join(' → ')}`);
+      let lastSuite = null;
+      for (const k of sequence) {
+        const [key, id] = k.split('.');
+        if (!SUITES[key]) continue;
+        if (key !== lastSuite) { this.emit({ type: 'suite', name: key }); this.log(`── ${SUITES[key].title} ──`, 'head'); lastSuite = key; }
+        await SUITES[key].run(this, [id]);
       }
     } catch (e) {
       this.log('Run aborted: ' + e.message, 'error');

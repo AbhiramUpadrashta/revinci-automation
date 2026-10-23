@@ -123,11 +123,18 @@ cd revinci-automation
 <span class="c"># install and start (opens http://localhost:4600)</span>
 npm install
 npm start</pre></div></li>
-        <li><div><b>Next time: update and start</b>
-<pre class="cmd" id="cmd-next">cd ~/revinci-automation
+        <li><div><b>Next time: update and start</b>. The first line closes any copy that is still running, so you never end up on an old version.
+<pre class="cmd" id="cmd-next">lsof -ti tcp:4600 | xargs kill -9 2&gt;/dev/null
+cd ~/revinci-automation
 git pull
 npm install
-npm start</pre></div></li>
+npm start</pre>
+          <div class="note">Keep this Terminal window open while you use the panel. The panel title shows the build (for example <code>build 2026-10-23.1</code>); script updates you pull later take effect on the next run without restarting.</div></div></li>
+        <li><div><b>Publish your changes to GitHub</b> (repo owner only)
+<pre class="cmd" id="cmd-push">cd ~/revinci-automation
+git add -A
+git commit -m "Update automation flows"
+git push</pre></div></li>
         <li><div><b>Share it with your team</b> (optional). Starts the app with a password and gives you a public <code>trycloudflare.com</code> link. It works while this Terminal stays open and the Mac is awake.
 <pre class="cmd" id="cmd-share">cd ~/revinci-automation
 command -v cloudflared &gt;/dev/null || brew install cloudflared
@@ -143,8 +150,8 @@ sleep 5 &amp;&amp; cloudflared tunnel --url http://localhost:4600</pre>
       <div class="grid">
         <div class="suite"><h3>Admin setup</h3><ul><li>Currency and exchange rate</li><li>Unit of measure</li><li>Attribute and attribute group</li><li>Price profile and cost profile</li><li>Customer account</li></ul></div>
         <div class="suite"><h3>API key</h3><ul><li>Checks Settings ▸ API Keys</li><li>Reuses a saved key or one you paste</li><li>Creates one only if none is active</li><li>Shows the key in the panel</li></ul></div>
-        <div class="suite"><h3>Product setup</h3><ul><li>Product, bundle, option, option group</li><li>Feature, feature offering, agent feature</li><li>Product with features or offerings</li><li>Simple and workflow agents</li></ul></div>
-        <div class="suite"><h3>Quote · Order · Entitlement</h3><ul><li>Quote → bag → finalize → lifecycle</li><li>Order → bag → finalize</li><li>Activate entitlement, map external ID</li><li>Send a usage event to the plan</li></ul></div>
+        <div class="suite"><h3>Product setup</h3><ul><li>Product, bundle, option, option group</li><li>Feature, feature offering, agent feature</li><li>Product with features or offerings</li><li>Simple agent: outcome + One Time, Subscription, Consumption (attribute based) and Margin prices</li><li>Workflow agent: Subscription $0, sub-agent with consumption matrix, outcome, offering</li></ul></div>
+        <div class="suite"><h3>Quote · Order · Entitlement</h3><ul><li>Quote → bag → finalize → lifecycle</li><li>Account → order (first account typed in), first agent, LLM popup, finalize</li><li>Open the entitlement (eye icon) and activate with today’s date</li><li>Send a usage event to the plan</li></ul></div>
         <div class="suite"><h3>API testing</h3><ul><li>Auth checks, including bad keys</li><li>Accounts, entitlements, plans, rating</li><li>Wallets, carryover, consumption rules</li><li>Usage ingest, single and bulk</li></ul></div>
       </div>
     </section>
@@ -155,7 +162,7 @@ sleep 5 &amp;&amp; cloudflared tunnel --url http://localhost:4600</pre>
         <li>Run it against the dev workspace. It creates real records there.</li>
         <li>Option A never asks for a password; it works only in a tab where you're logged in. Option B asks for one per run and never saves it.</li>
         <li>Revinci allows one active API key and shows its secret once. Paste your existing key into the panel, or tick <b>Revoke &amp; recreate</b> to replace it.</li>
-        <li>If a step fails, the report shows the screen it stopped on.</li>
+        <li>If a step fails, the report shows the screen it stopped on, and the Failed APIs tab shows the request and response.</li><li>The new agent flows run only in the full app (Option B); the in-tab runner (Option A) covers the other suites.</li>
         <li>Source code: <a href="https://github.com/AbhiramUpadrashta/revinci-automation" target="_blank" rel="noopener">github.com/AbhiramUpadrashta/revinci-automation</a></li>
       </ul>
     </section>

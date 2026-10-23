@@ -26,6 +26,7 @@ async function init() {
   $('email').value = LS.get('rv.email') || '';
   META = await fetch('/api/meta').then(r => r.json());
   const cfg = await fetch('/api/config').then(r => r.json()).catch(() => ({}));
+  if (cfg.build) $('build').textContent = 'build ' + cfg.build;
   if (cfg.forceHeadless) { $('headlessRow').hidden = true; $('hostedNote').hidden = false; }
   const w = LS.get('rv.wait') || 'standard';
   document.querySelector(`input[name=wait][value=${w}]`).checked = true;
