@@ -13,9 +13,9 @@ const esc = s => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 async function click(page, text, { timeout = 20000, exact = false } = {}) {
   const re = exact ? new RegExp(`^\\s*\\+?\\s*${esc(text)}\\s*$`, 'i') : new RegExp(`^\\s*\\+?\\s*${esc(text)}`, 'i');
   const b = page.locator('button:visible, [role=button]:visible, .ant-segmented-item:visible').filter({ hasText: re }).first();
-  await b.waitFor({ state: 'visible', timeout: a.to(timeout) });
+  await b.waitFor({ state: 'visible', timeout: Math.min(a.to(timeout), 120000) }); // never hang for the full 10-min visible wait
   await b.scrollIntoViewIfNeeded().catch(() => {});
-  await b.click();
+  await b.click({ timeout: 8000 }).catch(() => b.evaluate(x => x.click()));
   await waitIdle(page, 600);
 }
 
@@ -159,6 +159,46 @@ async function matrix(run, { attribute } = {}) {
   return v;
 }
 
+// Click a wizard button (Skip for now / Publish) and make sure the wizard really moved on.
+// If the button is missing or nothing happens, finish whatever earlier step is still pending
+// (an unsaved price form, matrix entries, outcomes, an open sub-agent/offering) and try again.
+async function advance(run, label, done, { maxMs = 90000 } = {}) {
+  const { page } = run;
+  const btn = page.locator('button:visible').filter({ hasText: new RegExp(`^\\s*${esc(label)}\\s*$`) });
+  const PENDING = ['Save price', 'Save Entries', 'Save outcomes', 'Create sub-agent', 'Create offering', 'Done', 'Save'];
+  const end = Date.now() + maxMs;
+  let tries = 0;
+  while (Date.now() < end) {
+    if (await done()) return tries ? `after ${tries} retr${tries > 1 ? 'ies' : 'y'}` : '';
+    const b = btn.last();
+    if (await b.count() && await b.isEnabled().catch(() => false)) {
+      await b.evaluate(x => { x.scrollIntoView({ block: 'center' }); x.click(); }).catch(() => {});
+      await a.buttonAny(page, ['Yes', 'Confirm', 'OK'], 1500);
+      for (let i = 0; i < 10; i++) { if (await done()) return tries ? `after ${tries} retr${tries > 1 ? 'ies' : 'y'}` : ''; await page.waitForTimeout(500); }
+    }
+    // the button did not move things on — look for an earlier step left unfinished
+    tries++;
+    let fixed = false;
+    for (const t of PENDING) {
+      if (t === label) continue;
+      const p = page.locator('button:visible').filter({ hasText: new RegExp(`^\\s*${esc(t)}\\s*$`) }).first();
+      if (await p.count() && await p.isEnabled().catch(() => false)) {
+        run.log(`  "${label}" did not go through — finishing a pending step first: clicking "${t}"`, 'warn');
+        await p.evaluate(x => { x.scrollIntoView({ block: 'center' }); x.click(); }).catch(() => {});
+        await a.toast(page, 6000).catch(e => run.log('  ' + e.message, 'warn'));
+        await waitIdle(page, 800);
+        fixed = true; break;
+      }
+    }
+    if (!fixed) await page.waitForTimeout(1500);
+  }
+  const visible = (await page.locator('button:visible').allInnerTexts()).map(x => x.trim().replace(/\s+/g, ' ')).filter(Boolean).slice(0, 15);
+  const errs = await page.locator('.ant-form-item-explain-error:visible, .ant-message-error').allInnerTexts().catch(() => []);
+  throw new Error(`"${label}" did not complete${errs.length ? ' — ' + errs.join('; ') : ''}. Buttons on screen: ${visible.join(' | ')}`);
+}
+const onAgentsList = page => () => Promise.resolve(/\/dashboard\/agents\/?(\?.*)?$/.test(page.url()));
+const publishReady = page => async () => (await page.locator('button:visible').filter({ hasText: /^\s*Publish\s*$/ }).count()) > 0;
+
 // Each phase is its own step in the panel; if one fails, the rest of that agent is skipped.
 async function phases(run, label, list) {
   for (let i = 0; i < list.length; i++) {
@@ -181,8 +221,8 @@ async function simple(run) {
     ['3 PLI · Subscription', async () => { await methodCard(page, 'Subscription'); await priceForm(run, page, 'Subscription', { name: `Subscription ${run.tag}`, start: 149 }); return 'Subscription $149/mo · UOM Each'; }],
     ['3 PLI · Consumption (attribute based)', async () => { await methodCard(page, 'Consumption'); await priceForm(run, page, 'Consumption', { name: `Consumption ${run.tag}` }); const v = await matrix(run); return `Attribute based · matrix entry $5 · ${v}`; }],
     ['3 PLI · Margin', async () => { await methodCard(page, 'Margin'); await priceForm(run, page, 'Margin', { name: `Margin ${run.tag}` }); return 'Margin 25%'; }],
-    ['4 Agent actions (Skip for now)', async () => { await click(page, 'Skip for now', { timeout: 15000 }); return 'skipped'; }],
-    ['5 Publish', async () => { await click(page, 'Publish', { timeout: 30000 }); await page.waitForURL(u => /\/dashboard\/agents\/?(\?.*)?$/.test(String(u)), { timeout: a.to(30000) }); return 'published'; }],
+    ['4 Agent actions (Skip for now)', async () => { const r = await advance(run, 'Skip for now', publishReady(page)); return `skipped ${r}`.trim(); }],
+    ['5 Publish', async () => { const r = await advance(run, 'Publish', onAgentsList(page)); return `published ${r}`.trim(); }],
   ]);
   run.data.products = run.data.products || {};
   run.data.products.agentSimple = { name, code, published: ok };
@@ -234,10 +274,10 @@ async function workflow(run) {
       await click(page, 'Save', { exact: true }); await a.toast(page, 10000);
       return `$1500/mo · ${n} sub-agent(s) Included`;
     }],
-    ['6 Publish', async () => { await click(page, 'Publish', { exact: true, timeout: 30000 }); await page.waitForURL(u => /\/dashboard\/agents\/?(\?.*)?$/.test(String(u)), { timeout: a.to(30000) }); return 'published'; }],
+    ['6 Publish', async () => { const r = await advance(run, 'Publish', onAgentsList(page)); return `published ${r}`.trim(); }],
   ]);
   run.data.products = run.data.products || {};
   run.data.products.agentWorkflow = { name, code, published: ok };
 }
 
-module.exports = { simple, workflow, _t: { selectIn, inputIn, pick, fillLast, methodCard } };
+module.exports = { simple, workflow, _t: { selectIn, inputIn, pick, fillLast, methodCard, advance, publishReady } };
