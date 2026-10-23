@@ -100,10 +100,13 @@ async function methodCard(scope, method) {
   // then fall back to clicking the element directly, and confirm the price form opened.
   const opened = () => page.locator('#name:visible').count().then(n => n > 0);
   for (let attempt = 1; attempt <= 3; attempt++) {
-    await page.locator('.ant-message-notice').last().waitFor({ state: 'hidden', timeout: 4000 }).catch(() => {});
     await card.evaluate(b => b.scrollIntoView({ block: 'center' })).catch(() => {});
-    await card.click({ timeout: 4000 }).catch(() => card.evaluate(b => b.click()));
-    await waitIdle(page, 800);
+    // click the card element directly: a real mouse click can land on an overlay and wait for it
+    if (attempt < 3) await card.evaluate(b => b.click());
+    else await card.click({ timeout: 5000, force: true }).catch(() => {});
+    await page.waitForTimeout(500);
+    if (await opened()) return;
+    await waitIdle(page, 600);
     if (await opened()) return;
   }
   throw new Error(`Clicked the "${method}" card but its price form did not open`);
