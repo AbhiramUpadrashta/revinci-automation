@@ -87,7 +87,7 @@ class Run {
     const { cfg } = this;
     this.startedAt = Date.now();
     this.emit({ type: 'run', status: 'running', id: this.id, tag: this.tag });
-    this.log(`Run ${this.id} · data tag ${this.tag} · scripts build 2026-10-23.3`);
+    this.log(`Run ${this.id} · data tag ${this.tag} · scripts build 2026-10-23.4`);
     const needsBrowser = true; // login is always needed (tenant + session token for lookups)
     try {
       if (needsBrowser) {
@@ -105,7 +105,7 @@ class Run {
             .catch(() => chromium.launch({ ...opts, channel: 'msedge' }));
         }
         if (cfg.disableCors !== false) this.log('Automation browser: web security (CORS) disabled');
-        this.context = await this.browser.newContext({ bypassCSP: cfg.disableCors !== false, viewport: { width: 1440, height: 900 }, recordVideo: cfg.video ? { dir: this.dir } : undefined });
+        this.context = await this.browser.newContext({ ignoreHTTPSErrors: true, bypassCSP: cfg.disableCors !== false, viewport: { width: 1440, height: 900 }, recordVideo: cfg.video ? { dir: this.dir } : undefined });
         this.page = await this.context.newPage();
         this.page.__run = this; // lets helpers write to the live log
         const ant = require('./ant');
