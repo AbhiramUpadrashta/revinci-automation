@@ -184,6 +184,8 @@ table.api td.p{white-space:normal;word-break:break-all}
     <label class="f" for="password">Password</label>
     <input id="password" type="password" autocomplete="current-password">
     <label class="chk"><input id="remember" type="checkbox" checked> Remember URL and email on this computer</label>
+    <label class="chk"><input id="disableCors" type="checkbox" checked> Disable web security (CORS) in the automation browser</label>
+    <p class="hint" style="margin:2px 0 0 26px">Same as starting Chrome with <code>--disable-web-security</code> and a separate profile. Applies only to the browser this app opens, never your own Chrome.</p>
   </section>
 
   <section class="card">

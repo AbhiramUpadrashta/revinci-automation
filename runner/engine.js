@@ -87,11 +87,15 @@ class Run {
     const { cfg } = this;
     this.startedAt = Date.now();
     this.emit({ type: 'run', status: 'running', id: this.id, tag: this.tag });
-    this.log(`Run ${this.id} · data tag ${this.tag} · scripts build 2026-10-23.2`);
+    this.log(`Run ${this.id} · data tag ${this.tag} · scripts build 2026-10-23.3`);
     const needsBrowser = true; // login is always needed (tenant + session token for lookups)
     try {
       if (needsBrowser) {
-        const opts = { headless: !!cfg.headless, slowMo: cfg.slowMo ?? 120, args: ['--disable-dev-shm-usage', '--disable-gpu', '--no-zygote', '--disable-extensions'] };
+        const args = ['--disable-dev-shm-usage', '--disable-gpu', '--no-zygote', '--disable-extensions'];
+        // CORS off for the automation browser only (same as: chrome --disable-web-security --user-data-dir=<separate profile>).
+        // Playwright always runs on its own throw-away profile, which is what --user-data-dir provides by hand.
+        if (cfg.disableCors !== false) args.push('--disable-web-security', '--disable-site-isolation-trials', '--disable-features=IsolateOrigins,site-per-process,BlockInsecurePrivateNetworkRequests');
+        const opts = { headless: !!cfg.headless, slowMo: cfg.slowMo ?? 120, args };
         try {
           this.browser = await chromium.launch({ ...opts, channel: cfg.channel || undefined });
         } catch (e) {
@@ -100,7 +104,8 @@ class Run {
           this.browser = await chromium.launch({ ...opts, channel: 'chrome' })
             .catch(() => chromium.launch({ ...opts, channel: 'msedge' }));
         }
-        this.context = await this.browser.newContext({ viewport: { width: 1440, height: 900 }, recordVideo: cfg.video ? { dir: this.dir } : undefined });
+        if (cfg.disableCors !== false) this.log('Automation browser: web security (CORS) disabled');
+        this.context = await this.browser.newContext({ bypassCSP: cfg.disableCors !== false, viewport: { width: 1440, height: 900 }, recordVideo: cfg.video ? { dir: this.dir } : undefined });
         this.page = await this.context.newPage();
         this.page.__run = this; // lets helpers write to the live log
         const ant = require('./ant');

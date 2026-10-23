@@ -43,7 +43,7 @@ function emit(ev) {
   for (const c of clients) c.write(line);
 }
 
-const BUILD = '2026-10-23.1';
+const BUILD = '2026-10-23.3';
 app.get('/api/config', (_req, res) => res.json({ hosted: HOSTED, forceHeadless: FORCE_HEADLESS, build: BUILD }));
 
 app.get('/api/meta', (_req, res) => {
@@ -91,6 +91,7 @@ app.post('/api/run', (req, res) => {
   const { Run } = engine();
   current = new Run({
     baseUrl: b.baseUrl, email: b.email, password: b.password, suites,
+    disableCors: b.disableCors !== false,
     headless: FORCE_HEADLESS || !!b.headless, slowMo: Number(b.slowMo ?? 120), video: !!b.video,
     apiKey: (b.apiKey || '').trim() || null, rotateKey: !!b.rotateKey,
     apiBase: (b.apiBase || '').trim() || null, product: (b.product || '').trim() || null,

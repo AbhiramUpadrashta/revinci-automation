@@ -85,6 +85,12 @@ pre.cmd .c { color: #8fa38a }
       <h2 id="s-browser">Run it in your browser</h2>
       <p class="sub">Uses the Revinci login you already have. The test panel opens over Revinci with the screens on the left and results on the right.</p>
       <ol class="steps">
+        <li><div><b>If you hit CORS errors, open a separate Chrome with web security off</b> (optional). It uses its own profile, so your normal Chrome is not affected. Close it when you're done testing.
+<pre class="cmd" id="cmd-cors-win"><span class="c"># Windows (Command Prompt)</span>
+"C:\Program Files\Google\Chrome\Application\chrome.exe" --disable-web-security --user-data-dir="C:/chrome-cors"</pre>
+<pre class="cmd" id="cmd-cors-mac"><span class="c"># Mac (Terminal)</span>
+open -na "Google Chrome" --args --disable-web-security --user-data-dir="$HOME/chrome-cors"</pre>
+          <div class="note">Option B (the full app) already starts its own browser this way; untick <b>Disable web security</b> in its Workspace card to turn it off.</div></div></li>
         <li><div><b>Open Revinci and log in</b>, for example <code>https://tessla-workspace-dev.revinci.ai/dashboard</code>.</div></li>
         <li><div><b>Start the runner</b> in that tab, either way:
           <div class="note" style="margin-top:8px"><b>Bookmark:</b> drag this button to your bookmarks bar (<kbd>⌘</kbd> <kbd>Shift</kbd> <kbd>B</kbd> shows it), then click it on the Revinci tab.</div>

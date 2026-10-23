@@ -27,6 +27,7 @@ async function init() {
   META = await fetch('/api/meta').then(r => r.json());
   const cfg = await fetch('/api/config').then(r => r.json()).catch(() => ({}));
   if (cfg.build) $('build').textContent = 'build ' + cfg.build;
+  { const v = LS.get('rv.cors'); if (v !== null) $('disableCors').checked = v === '1'; $('disableCors').onchange = () => LS.set('rv.cors', $('disableCors').checked ? '1' : '0'); }
   if (cfg.forceHeadless) { $('headlessRow').hidden = true; $('hostedNote').hidden = false; }
   const w = LS.get('rv.wait') || 'standard';
   document.querySelector(`input[name=wait][value=${w}]`).checked = true;
@@ -199,7 +200,7 @@ $('run').onclick = async () => {
   const body = {
     baseUrl: $('baseUrl').value.trim(), email: $('email').value.trim(), password: $('password').value,
     suites: selection(), names, order: SEQ.slice(), waitMode, waitMaxMin: +$('waitMax').value || 10,
-    headless: $('headless').checked, video: $('video').checked, slowMo: +$('slowMo').value,
+    disableCors: $('disableCors').checked, headless: $('headless').checked, video: $('video').checked, slowMo: +$('slowMo').value,
     apiKey: browserKey()?.key || '', rotateKey: $('rotateKey').checked, apiBase: $('apiBase').value, planNumber: $('planNumber').value,
   };
   if ($('rotateKey').checked && !confirm('This revokes the active API key in Revinci. Anything using it stops working. Continue?')) return;
