@@ -48,6 +48,7 @@ class Run {
 
   log(msg, level = 'info') {
     const line = { t: Date.now(), level, msg };
+    (this.logs = this.logs || []).push(line);
     this.emit({ type: 'log', ...line });
   }
 
@@ -86,7 +87,7 @@ class Run {
     const { cfg } = this;
     this.startedAt = Date.now();
     this.emit({ type: 'run', status: 'running', id: this.id, tag: this.tag });
-    this.log(`Run ${this.id} · data tag ${this.tag} · scripts build 2026-10-23.1`);
+    this.log(`Run ${this.id} · data tag ${this.tag} · scripts build 2026-10-23.2`);
     const needsBrowser = true; // login is always needed (tenant + session token for lookups)
     try {
       if (needsBrowser) {
@@ -101,6 +102,7 @@ class Run {
         }
         this.context = await this.browser.newContext({ viewport: { width: 1440, height: 900 }, recordVideo: cfg.video ? { dir: this.dir } : undefined });
         this.page = await this.context.newPage();
+        this.page.__run = this; // lets helpers write to the live log
         const ant = require('./ant');
         ant.setWait(cfg.waitMode, cfg.waitMaxMin);
         this.page.setDefaultTimeout(ant.to(20000));
@@ -196,7 +198,7 @@ class Run {
     if (this.browser) await this.browser.close().catch(() => {});
     const passed = this.steps.filter(s => s.status === 'passed').length;
     const failed = this.steps.filter(s => s.status === 'failed').length;
-    const summary = { id: this.id, tag: this.tag, baseUrl: this.cfg.baseUrl, suites: this.cfg.suites, passed, failed, total: this.steps.length, data: this.data, steps: this.steps, failures: this.failures, finishedAt: new Date().toISOString() };
+    const summary = { id: this.id, tag: this.tag, baseUrl: this.cfg.baseUrl, suites: this.cfg.suites, passed, failed, total: this.steps.length, data: this.data, steps: this.steps, failures: this.failures, log: (this.logs || []).slice(-800), finishedAt: new Date().toISOString() };
     fs.writeFileSync(path.join(this.dir, 'report.json'), JSON.stringify(summary, null, 2));
     fs.writeFileSync(path.join(this.dir, 'index.html'), require('./report').html(summary));
     store.addRun({ id: this.id, tag: this.tag, passed, failed, total: this.steps.length, at: summary.finishedAt, baseUrl: this.cfg.baseUrl,

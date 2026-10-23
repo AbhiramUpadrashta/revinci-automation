@@ -5,6 +5,7 @@ const a = require('../ant');
 const { waitIdle } = require('../ui');
 const { go, nameFor } = require('./admin');
 
+const run_log = (page, msg) => { try { page.__run && page.__run.log(msg); } catch (_) {} };
 const seen = (loc, ms) => loc.waitFor({ state: 'visible', timeout: ms }).then(() => true).catch(() => false);
 const dd = page => page.locator('.ant-select-dropdown:not(.ant-select-dropdown-hidden)').last();
 const esc = s => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -92,22 +93,23 @@ async function methodCard(scope, method) {
   // Card text is "Subscription" + "A recurring charge…" with no space between them in textContent,
   // so match the card by its title element instead of a word boundary.
   const title = pageOf(scope).locator('*', { hasText: new RegExp(`^\\s*${esc(method)}\\s*$`) });
-  const card = scope.locator('button:visible').filter({ has: title }).first();
+  const DESC = { 'One Time': /single charge/i, Subscription: /recurring charge/i, Consumption: /charge per unit/i, Margin: /cost plus a markup/i };
+  const card = scope.locator('button:visible').filter({ has: title }).filter({ hasText: DESC[method] || /./ }).first();
   const page = pageOf(scope);
   await card.waitFor({ state: 'visible', timeout: a.to(15000) });
-  // After a save, success toasts / the sticky header can sit on top of the next card and swallow a real click
-  // (that is what left Subscription and Consumption stuck). Centre the card, try a normal click briefly,
-  // then fall back to clicking the element directly, and confirm the price form opened.
-  const opened = () => page.locator('#name:visible').count().then(n => n > 0);
-  for (let attempt = 1; attempt <= 3; attempt++) {
-    await card.evaluate(b => b.scrollIntoView({ block: 'center' })).catch(() => {});
-    // click the card element directly: a real mouse click can land on an overlay and wait for it
-    if (attempt < 3) await card.evaluate(b => b.click());
-    else await card.click({ timeout: 5000, force: true }).catch(() => {});
-    await page.waitForTimeout(500);
-    if (await opened()) { await waitIdle(page, 1000); return; } // let the form finish rendering before typing
-    await waitIdle(page, 600);
-    if (await opened()) return;
+  // Try a direct element click first, then a real mouse click, a forced click and the keyboard.
+  // When a method's form opens, its card leaves the "add a price method" list — that is the reliable signal
+  // (another method's form can still be on screen, so "a price form is visible" is not).
+  const opened = () => card.count().then(n => n === 0);
+  const ways = [
+    ['direct', () => card.evaluate(b => { b.scrollIntoView({ block: 'center' }); b.click(); })],
+    ['mouse', async () => { await card.evaluate(b => b.scrollIntoView({ block: 'center' })); const bb = await card.boundingBox(); if (bb) await page.mouse.click(bb.x + 40, bb.y + bb.height / 2); }],
+    ['force', () => card.click({ force: true, timeout: 5000 })],
+    ['keyboard', async () => { await card.focus(); await page.keyboard.press('Enter'); }],
+  ];
+  for (const [how, fn] of ways) {
+    await fn().catch(() => {});
+    for (let i = 0; i < 6; i++) { if (await opened()) { await waitIdle(page, 1000); if (how !== 'direct') run_log(page, `  "${method}" opened via ${how} click`); return; } await page.waitForTimeout(400); }
   }
   throw new Error(`Clicked the "${method}" card but its price form did not open`);
 }
@@ -238,4 +240,4 @@ async function workflow(run) {
   run.data.products.agentWorkflow = { name, code, published: ok };
 }
 
-module.exports = { simple, workflow, _t: { selectIn, inputIn, pick, fillLast } };
+module.exports = { simple, workflow, _t: { selectIn, inputIn, pick, fillLast, methodCard } };
