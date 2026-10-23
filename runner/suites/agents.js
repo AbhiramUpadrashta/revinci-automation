@@ -105,7 +105,7 @@ async function methodCard(scope, method) {
     if (attempt < 3) await card.evaluate(b => b.click());
     else await card.click({ timeout: 5000, force: true }).catch(() => {});
     await page.waitForTimeout(500);
-    if (await opened()) return;
+    if (await opened()) { await waitIdle(page, 1000); return; } // let the form finish rendering before typing
     await waitIdle(page, 600);
     if (await opened()) return;
   }
@@ -131,6 +131,9 @@ async function priceForm(run, scope, method, { name, start, saveText = 'Save pri
     const sp = inputIn(scope, 'Start Price');
     if (await seen(sp, 2000)) { await sp.fill(''); await sp.fill(String(start)); }
   }
+  // the form can re-render while it loads and drop the typed name — re-check before saving
+  const nameEl = page.locator('#name:visible').last();
+  if (!(await nameEl.inputValue().catch(() => ''))) { await nameEl.fill(name); await page.waitForTimeout(300); }
   const save = scope.locator('button:visible').filter({ hasText: new RegExp(`^\\s*${esc(saveText)}\\s*$`) }).first();
   await save.click();
   await a.toast(page, 10000);
