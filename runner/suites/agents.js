@@ -93,10 +93,20 @@ async function methodCard(scope, method) {
   // so match the card by its title element instead of a word boundary.
   const title = pageOf(scope).locator('*', { hasText: new RegExp(`^\\s*${esc(method)}\\s*$`) });
   const card = scope.locator('button:visible').filter({ has: title }).first();
+  const page = pageOf(scope);
   await card.waitFor({ state: 'visible', timeout: a.to(15000) });
-  await card.scrollIntoViewIfNeeded().catch(() => {});
-  await card.click();
-  await waitIdle(pageOf(scope), 800);
+  // After a save, success toasts / the sticky header can sit on top of the next card and swallow a real click
+  // (that is what left Subscription and Consumption stuck). Centre the card, try a normal click briefly,
+  // then fall back to clicking the element directly, and confirm the price form opened.
+  const opened = () => page.locator('#name:visible').count().then(n => n > 0);
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    await page.locator('.ant-message-notice').last().waitFor({ state: 'hidden', timeout: 4000 }).catch(() => {});
+    await card.evaluate(b => b.scrollIntoView({ block: 'center' })).catch(() => {});
+    await card.click({ timeout: 4000 }).catch(() => card.evaluate(b => b.click()));
+    await waitIdle(page, 800);
+    if (await opened()) return;
+  }
+  throw new Error(`Clicked the "${method}" card but its price form did not open`);
 }
 async function withPricing(scope) {
   const b = scope.locator('button:visible').filter({ hasText: /^\s*With pricing/i }).first();
