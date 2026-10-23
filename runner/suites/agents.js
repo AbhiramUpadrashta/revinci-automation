@@ -89,7 +89,10 @@ async function outcomes(run) {
 // Inline panel (sub-agent / offering) that owns a given button — keeps clicks away from the agent's own price cards.
 const panel = (page, buttonText) => page.locator('div.rounded-xl').filter({ has: page.locator('button', { hasText: new RegExp(`^\\s*${esc(buttonText)}\\s*$`) }) }).last();
 async function methodCard(scope, method) {
-  const card = scope.locator('button:visible').filter({ hasText: new RegExp(`^\\s*${esc(method)}\\b`, 'i') }).first();
+  // Card text is "Subscription" + "A recurring charge…" with no space between them in textContent,
+  // so match the card by its title element instead of a word boundary.
+  const title = pageOf(scope).locator('*', { hasText: new RegExp(`^\\s*${esc(method)}\\s*$`) });
+  const card = scope.locator('button:visible').filter({ has: title }).first();
   await card.waitFor({ state: 'visible', timeout: a.to(15000) });
   await card.scrollIntoViewIfNeeded().catch(() => {});
   await card.click();
